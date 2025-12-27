@@ -237,7 +237,7 @@
             ;; Transfer funds
             (try! (as-contract? (stx-transfer? client-amount tx-sender (get client project))))
             (try! (as-contract? (stx-transfer? freelancer-amount tx-sender (unwrap! (get freelancer project) err-not-found))))
-            (try! (as-contract (stx-transfer? (get resolver-fee dispute) tx-sender (get dispute-resolver project))))
+            (try! (as-contract? (stx-transfer? (get resolver-fee dispute) tx-sender (get dispute-resolver project))))
             
             ;; Update project status
             (map-set projects
