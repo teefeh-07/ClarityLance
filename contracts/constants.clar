@@ -1,1 +1,1 @@
-(define-read-only (get-min-amount) u1000000)
+(define-read-only (get-protocol-fee) u100)
