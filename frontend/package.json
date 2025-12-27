@@ -1,0 +1,18 @@
+{
+  "name": "claritylance-web",
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@stacks/connect": "^7.7.0",
+    "@stacks/transactions": "^6.15.0",
+    "@stacks/network": "^6.13.0",
+    "@hirosystems/chainhooks-client": "^1.0.0",
+    "lucide-react": "^0.344.0"
+  },
+  "devDependencies": {
+    "vite": "^5.1.4",
+    "typescript": "^5.3.3"
+  }
+}
