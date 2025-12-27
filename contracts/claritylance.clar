@@ -81,7 +81,7 @@
         (asserts! (> total-amount u0) err-invalid-percentage)
         (asserts! (> milestone-count u0) err-invalid-percentage)
         
-        (try! (stx-transfer? total-amount tx-sender (as-contract tx-sender)))
+        (try! (stx-transfer? total-amount tx-sender (as-contract? tx-sender)))
         
         (map-set projects
             {project-id: project-id}
