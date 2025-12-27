@@ -1,0 +1,1 @@
+export const util0 = () => true;
