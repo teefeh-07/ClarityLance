@@ -1,0 +1,929 @@
+[
+  {
+    "branch": "config/clarinet-version",
+    "commit_msg": "feat: update clarity version to 4",
+    "pr_body": "This PR introduces: feat: update clarity version to 4",
+    "changes": [
+      {
+        "path": "Clarinet.toml",
+        "content": "[project]\nname = 'claritylance'\ndescription = ''\nauthors = []\ntelemetry = true\ncache_dir = '.\\.cache'\nrequirements = []\n[contracts.claritylance]\npath = 'contracts/claritylance.clar'\nclarity_version = 4\nepoch = 3.3\n\n[repl.analysis.check_checker]\nstrict = false\ntrusted_sender = false\ntrusted_caller = false\ncallee_filter = false\n"
+      }
+    ]
+  },
+  {
+    "branch": "refactor/contract-as-contract-create",
+    "commit_msg": "refactor: update as-contract to as-contract? in create-project",
+    "pr_body": "This PR introduces: refactor: update as-contract to as-contract? in create-project",
+    "changes": [
+      {
+        "path": "contracts/claritylance.clar",
+        "content": ";; ClarityLance\r\n;; A decentralized freelance payment escrow system with milestone-based releases\r\n;; Contract allows clients to create projects, freelancers to accept them,\r\n;; and implements a milestone-based payment system with dispute resolution\r\n\r\n;; Constants\r\n(define-constant contract-owner tx-sender)\r\n(define-constant err-owner-only (err u100))\r\n(define-constant err-not-found (err u101))\r\n(define-constant err-already-exists (err u102))\r\n(define-constant err-unauthorized (err u103))\r\n(define-constant err-wrong-status (err u104))\r\n(define-constant err-insufficient-funds (err u105))\r\n(define-constant err-invalid-percentage (err u106))\r\n\r\n;; Project status types\r\n(define-data-var project-id-nonce uint u0)\r\n\r\n;; Data Structures\r\n(define-map projects \r\n    { project-id: uint }\r\n    {\r\n        client: principal,\r\n        freelancer: (optional principal),\r\n        total-amount: uint,\r\n        milestone-count: uint,\r\n        description: (string-utf8 500),\r\n        status: (string-ascii 20),\r\n        dispute-resolver: principal,\r\n        created-at: uint\r\n    }\r\n)\r\n\r\n(define-map milestones\r\n    { project-id: uint, milestone-id: uint }\r\n    {\r\n        amount: uint,\r\n        description: (string-utf8 256),\r\n        status: (string-ascii 20),\r\n        completion-proof: (optional (string-utf8 500))\r\n    }\r\n)\r\n\r\n(define-map project-funds\r\n    { project-id: uint }\r\n    { \r\n        balance: uint,\r\n        released: uint\r\n    }\r\n)\r\n\r\n(define-map disputes\r\n    { project-id: uint }\r\n    {\r\n        initiated-by: principal,\r\n        reason: (string-utf8 500),\r\n        resolver-fee: uint,\r\n        resolved: bool\r\n    }\r\n)\r\n\r\n;; Read-only functions\r\n(define-read-only (get-project-details (project-id uint))\r\n    (ok (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n)\r\n\r\n(define-read-only (get-milestone-details (project-id uint) (milestone-id uint))\r\n    (ok (unwrap! (map-get? milestones {project-id: project-id, milestone-id: milestone-id}) err-not-found))\r\n)\r\n\r\n(define-read-only (get-project-balance (project-id uint))\r\n    (ok (unwrap! (map-get? project-funds {project-id: project-id}) err-not-found))\r\n)\r\n\r\n;; Public functions\r\n(define-public (create-project (description (string-utf8 500)) (total-amount uint) (milestone-count uint) (dispute-resolver principal))\r\n    (let\r\n        (\r\n            (project-id (+ (var-get project-id-nonce) u1))\r\n        )\r\n        (asserts! (> total-amount u0) err-invalid-percentage)\r\n        (asserts! (> milestone-count u0) err-invalid-percentage)\r\n        \r\n        (try! (stx-transfer? total-amount tx-sender (as-contract? tx-sender)))\r\n        \r\n        (map-set projects\r\n            {project-id: project-id}\r\n            {\r\n                client: tx-sender,\r\n                freelancer: none,\r\n                total-amount: total-amount,\r\n                milestone-count: milestone-count,\r\n                description: description,\r\n                status: \"open\",\r\n                dispute-resolver: dispute-resolver,\r\n                created-at: block-height\r\n            }\r\n        )\r\n        \r\n        (map-set project-funds\r\n            {project-id: project-id}\r\n            {\r\n                balance: total-amount,\r\n                released: u0\r\n            }\r\n        )\r\n        \r\n        (var-set project-id-nonce project-id)\r\n        (ok project-id)\r\n    )\r\n)\r\n\r\n(define-public (accept-project (project-id uint))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq (get status project) \"open\") err-wrong-status)\r\n        (asserts! (is-none (get freelancer project)) err-already-exists)\r\n        \r\n        (map-set projects\r\n            {project-id: project-id}\r\n            (merge project {\r\n                freelancer: (some tx-sender),\r\n                status: \"in-progress\"\r\n            })\r\n        )\r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (submit-milestone (project-id uint) (milestone-id uint) (completion-proof (string-utf8 500)))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (milestone (unwrap! (map-get? milestones {project-id: project-id, milestone-id: milestone-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq (some tx-sender) (get freelancer project)) err-unauthorized)\r\n        (asserts! (is-eq (get status milestone) \"pending\") err-wrong-status)\r\n        \r\n        (map-set milestones\r\n            {project-id: project-id, milestone-id: milestone-id}\r\n            (merge milestone {\r\n                status: \"submitted\",\r\n                completion-proof: (some completion-proof)\r\n            })\r\n        )\r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (approve-milestone (project-id uint) (milestone-id uint))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (milestone (unwrap! (map-get? milestones {project-id: project-id, milestone-id: milestone-id}) err-not-found))\r\n            (funds (unwrap! (map-get? project-funds {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq tx-sender (get client project)) err-unauthorized)\r\n        (asserts! (is-eq (get status milestone) \"submitted\") err-wrong-status)\r\n        \r\n        ;; Release payment\r\n        (try! (as-contract (stx-transfer? \r\n            (get amount milestone)\r\n            tx-sender\r\n            (unwrap! (get freelancer project) err-not-found)\r\n        )))\r\n        \r\n        ;; Update milestone and funds\r\n        (map-set milestones\r\n            {project-id: project-id, milestone-id: milestone-id}\r\n            (merge milestone {status: \"completed\"})\r\n        )\r\n        \r\n        (map-set project-funds\r\n            {project-id: project-id}\r\n            {\r\n                balance: (- (get balance funds) (get amount milestone)),\r\n                released: (+ (get released funds) (get amount milestone))\r\n            }\r\n        )\r\n        \r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (initiate-dispute (project-id uint) (reason (string-utf8 500)))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (resolver-fee (/ (get total-amount project) u20)) ;; 5% fee\r\n        )\r\n        (asserts! (or \r\n            (is-eq tx-sender (get client project))\r\n            (is-eq (some tx-sender) (get freelancer project))\r\n        ) err-unauthorized)\r\n        \r\n        (map-set disputes\r\n            {project-id: project-id}\r\n            {\r\n                initiated-by: tx-sender,\r\n                reason: reason,\r\n                resolver-fee: resolver-fee,\r\n                resolved: false\r\n            }\r\n        )\r\n        \r\n        (map-set projects\r\n            {project-id: project-id}\r\n            (merge project {status: \"disputed\"})\r\n        )\r\n        \r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (resolve-dispute \r\n    (project-id uint) \r\n    (client-percentage uint)\r\n    (freelancer-percentage uint))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (funds (unwrap! (map-get? project-funds {project-id: project-id}) err-not-found))\r\n            (dispute (unwrap! (map-get? disputes {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq tx-sender (get dispute-resolver project)) err-unauthorized)\r\n        (asserts! (is-eq (+ client-percentage freelancer-percentage) u100) err-invalid-percentage)\r\n        \r\n        ;; Calculate amounts\r\n        (let\r\n            (\r\n                (remaining-balance (get balance funds))\r\n                (client-amount (/ (* remaining-balance client-percentage) u100))\r\n                (freelancer-amount (/ (* remaining-balance freelancer-percentage) u100))\r\n            )\r\n            ;; Transfer funds\r\n            (try! (as-contract (stx-transfer? client-amount tx-sender (get client project))))\r\n            (try! (as-contract (stx-transfer? freelancer-amount tx-sender (unwrap! (get freelancer project) err-not-found))))\r\n            (try! (as-contract (stx-transfer? (get resolver-fee dispute) tx-sender (get dispute-resolver project))))\r\n            \r\n            ;; Update project status\r\n            (map-set projects\r\n                {project-id: project-id}\r\n                (merge project {status: \"resolved\"})\r\n            )\r\n            \r\n            (map-set disputes\r\n                {project-id: project-id}\r\n                (merge dispute {resolved: true})\r\n            )\r\n            \r\n            (ok true)\r\n        )\r\n    )\r\n)\r\n\r\n;; Initialize milestone\r\n(define-public (set-milestone \r\n    (project-id uint) \r\n    (milestone-id uint)\r\n    (amount uint)\r\n    (description (string-utf8 256)))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq tx-sender (get client project)) err-unauthorized)\r\n        (asserts! (< milestone-id (get milestone-count project)) err-invalid-percentage)\r\n        \r\n        (map-set milestones\r\n            {project-id: project-id, milestone-id: milestone-id}\r\n            {\r\n                amount: amount,\r\n                description: description,\r\n                status: \"pending\",\r\n                completion-proof: none\r\n            }\r\n        )\r\n        (ok true)\r\n    )\r\n)"
+      }
+    ]
+  },
+  {
+    "branch": "refactor/contract-as-contract-approve",
+    "commit_msg": "refactor: update as-contract to as-contract? in approve-milestone",
+    "pr_body": "This PR introduces: refactor: update as-contract to as-contract? in approve-milestone",
+    "changes": [
+      {
+        "path": "contracts/claritylance.clar",
+        "content": ";; ClarityLance\r\n;; A decentralized freelance payment escrow system with milestone-based releases\r\n;; Contract allows clients to create projects, freelancers to accept them,\r\n;; and implements a milestone-based payment system with dispute resolution\r\n\r\n;; Constants\r\n(define-constant contract-owner tx-sender)\r\n(define-constant err-owner-only (err u100))\r\n(define-constant err-not-found (err u101))\r\n(define-constant err-already-exists (err u102))\r\n(define-constant err-unauthorized (err u103))\r\n(define-constant err-wrong-status (err u104))\r\n(define-constant err-insufficient-funds (err u105))\r\n(define-constant err-invalid-percentage (err u106))\r\n\r\n;; Project status types\r\n(define-data-var project-id-nonce uint u0)\r\n\r\n;; Data Structures\r\n(define-map projects \r\n    { project-id: uint }\r\n    {\r\n        client: principal,\r\n        freelancer: (optional principal),\r\n        total-amount: uint,\r\n        milestone-count: uint,\r\n        description: (string-utf8 500),\r\n        status: (string-ascii 20),\r\n        dispute-resolver: principal,\r\n        created-at: uint\r\n    }\r\n)\r\n\r\n(define-map milestones\r\n    { project-id: uint, milestone-id: uint }\r\n    {\r\n        amount: uint,\r\n        description: (string-utf8 256),\r\n        status: (string-ascii 20),\r\n        completion-proof: (optional (string-utf8 500))\r\n    }\r\n)\r\n\r\n(define-map project-funds\r\n    { project-id: uint }\r\n    { \r\n        balance: uint,\r\n        released: uint\r\n    }\r\n)\r\n\r\n(define-map disputes\r\n    { project-id: uint }\r\n    {\r\n        initiated-by: principal,\r\n        reason: (string-utf8 500),\r\n        resolver-fee: uint,\r\n        resolved: bool\r\n    }\r\n)\r\n\r\n;; Read-only functions\r\n(define-read-only (get-project-details (project-id uint))\r\n    (ok (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n)\r\n\r\n(define-read-only (get-milestone-details (project-id uint) (milestone-id uint))\r\n    (ok (unwrap! (map-get? milestones {project-id: project-id, milestone-id: milestone-id}) err-not-found))\r\n)\r\n\r\n(define-read-only (get-project-balance (project-id uint))\r\n    (ok (unwrap! (map-get? project-funds {project-id: project-id}) err-not-found))\r\n)\r\n\r\n;; Public functions\r\n(define-public (create-project (description (string-utf8 500)) (total-amount uint) (milestone-count uint) (dispute-resolver principal))\r\n    (let\r\n        (\r\n            (project-id (+ (var-get project-id-nonce) u1))\r\n        )\r\n        (asserts! (> total-amount u0) err-invalid-percentage)\r\n        (asserts! (> milestone-count u0) err-invalid-percentage)\r\n        \r\n        (try! (stx-transfer? total-amount tx-sender (as-contract? tx-sender)))\r\n        \r\n        (map-set projects\r\n            {project-id: project-id}\r\n            {\r\n                client: tx-sender,\r\n                freelancer: none,\r\n                total-amount: total-amount,\r\n                milestone-count: milestone-count,\r\n                description: description,\r\n                status: \"open\",\r\n                dispute-resolver: dispute-resolver,\r\n                created-at: block-height\r\n            }\r\n        )\r\n        \r\n        (map-set project-funds\r\n            {project-id: project-id}\r\n            {\r\n                balance: total-amount,\r\n                released: u0\r\n            }\r\n        )\r\n        \r\n        (var-set project-id-nonce project-id)\r\n        (ok project-id)\r\n    )\r\n)\r\n\r\n(define-public (accept-project (project-id uint))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq (get status project) \"open\") err-wrong-status)\r\n        (asserts! (is-none (get freelancer project)) err-already-exists)\r\n        \r\n        (map-set projects\r\n            {project-id: project-id}\r\n            (merge project {\r\n                freelancer: (some tx-sender),\r\n                status: \"in-progress\"\r\n            })\r\n        )\r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (submit-milestone (project-id uint) (milestone-id uint) (completion-proof (string-utf8 500)))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (milestone (unwrap! (map-get? milestones {project-id: project-id, milestone-id: milestone-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq (some tx-sender) (get freelancer project)) err-unauthorized)\r\n        (asserts! (is-eq (get status milestone) \"pending\") err-wrong-status)\r\n        \r\n        (map-set milestones\r\n            {project-id: project-id, milestone-id: milestone-id}\r\n            (merge milestone {\r\n                status: \"submitted\",\r\n                completion-proof: (some completion-proof)\r\n            })\r\n        )\r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (approve-milestone (project-id uint) (milestone-id uint))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (milestone (unwrap! (map-get? milestones {project-id: project-id, milestone-id: milestone-id}) err-not-found))\r\n            (funds (unwrap! (map-get? project-funds {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq tx-sender (get client project)) err-unauthorized)\r\n        (asserts! (is-eq (get status milestone) \"submitted\") err-wrong-status)\r\n        \r\n        ;; Release payment\r\n        (try! (as-contract (stx-transfer? \r\n            (get amount milestone)\r\n            tx-sender\r\n            (unwrap! (get freelancer project) err-not-found)\r\n        )))\r\n        \r\n        ;; Update milestone and funds\r\n        (map-set milestones\r\n            {project-id: project-id, milestone-id: milestone-id}\r\n            (merge milestone {status: \"completed\"})\r\n        )\r\n        \r\n        (map-set project-funds\r\n            {project-id: project-id}\r\n            {\r\n                balance: (- (get balance funds) (get amount milestone)),\r\n                released: (+ (get released funds) (get amount milestone))\r\n            }\r\n        )\r\n        \r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (initiate-dispute (project-id uint) (reason (string-utf8 500)))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (resolver-fee (/ (get total-amount project) u20)) ;; 5% fee\r\n        )\r\n        (asserts! (or \r\n            (is-eq tx-sender (get client project))\r\n            (is-eq (some tx-sender) (get freelancer project))\r\n        ) err-unauthorized)\r\n        \r\n        (map-set disputes\r\n            {project-id: project-id}\r\n            {\r\n                initiated-by: tx-sender,\r\n                reason: reason,\r\n                resolver-fee: resolver-fee,\r\n                resolved: false\r\n            }\r\n        )\r\n        \r\n        (map-set projects\r\n            {project-id: project-id}\r\n            (merge project {status: \"disputed\"})\r\n        )\r\n        \r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (resolve-dispute \r\n    (project-id uint) \r\n    (client-percentage uint)\r\n    (freelancer-percentage uint))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (funds (unwrap! (map-get? project-funds {project-id: project-id}) err-not-found))\r\n            (dispute (unwrap! (map-get? disputes {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq tx-sender (get dispute-resolver project)) err-unauthorized)\r\n        (asserts! (is-eq (+ client-percentage freelancer-percentage) u100) err-invalid-percentage)\r\n        \r\n        ;; Calculate amounts\r\n        (let\r\n            (\r\n                (remaining-balance (get balance funds))\r\n                (client-amount (/ (* remaining-balance client-percentage) u100))\r\n                (freelancer-amount (/ (* remaining-balance freelancer-percentage) u100))\r\n            )\r\n            ;; Transfer funds\r\n            (try! (as-contract (stx-transfer? client-amount tx-sender (get client project))))\r\n            (try! (as-contract (stx-transfer? freelancer-amount tx-sender (unwrap! (get freelancer project) err-not-found))))\r\n            (try! (as-contract (stx-transfer? (get resolver-fee dispute) tx-sender (get dispute-resolver project))))\r\n            \r\n            ;; Update project status\r\n            (map-set projects\r\n                {project-id: project-id}\r\n                (merge project {status: \"resolved\"})\r\n            )\r\n            \r\n            (map-set disputes\r\n                {project-id: project-id}\r\n                (merge dispute {resolved: true})\r\n            )\r\n            \r\n            (ok true)\r\n        )\r\n    )\r\n)\r\n\r\n;; Initialize milestone\r\n(define-public (set-milestone \r\n    (project-id uint) \r\n    (milestone-id uint)\r\n    (amount uint)\r\n    (description (string-utf8 256)))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq tx-sender (get client project)) err-unauthorized)\r\n        (asserts! (< milestone-id (get milestone-count project)) err-invalid-percentage)\r\n        \r\n        (map-set milestones\r\n            {project-id: project-id, milestone-id: milestone-id}\r\n            {\r\n                amount: amount,\r\n                description: description,\r\n                status: \"pending\",\r\n                completion-proof: none\r\n            }\r\n        )\r\n        (ok true)\r\n    )\r\n)"
+      }
+    ]
+  },
+  {
+    "branch": "refactor/contract-as-contract-resolve-1",
+    "commit_msg": "refactor: update first as-contract in resolve-dispute",
+    "pr_body": "This PR introduces: refactor: update first as-contract in resolve-dispute",
+    "changes": [
+      {
+        "path": "contracts/claritylance.clar",
+        "content": ";; ClarityLance\r\n;; A decentralized freelance payment escrow system with milestone-based releases\r\n;; Contract allows clients to create projects, freelancers to accept them,\r\n;; and implements a milestone-based payment system with dispute resolution\r\n\r\n;; Constants\r\n(define-constant contract-owner tx-sender)\r\n(define-constant err-owner-only (err u100))\r\n(define-constant err-not-found (err u101))\r\n(define-constant err-already-exists (err u102))\r\n(define-constant err-unauthorized (err u103))\r\n(define-constant err-wrong-status (err u104))\r\n(define-constant err-insufficient-funds (err u105))\r\n(define-constant err-invalid-percentage (err u106))\r\n\r\n;; Project status types\r\n(define-data-var project-id-nonce uint u0)\r\n\r\n;; Data Structures\r\n(define-map projects \r\n    { project-id: uint }\r\n    {\r\n        client: principal,\r\n        freelancer: (optional principal),\r\n        total-amount: uint,\r\n        milestone-count: uint,\r\n        description: (string-utf8 500),\r\n        status: (string-ascii 20),\r\n        dispute-resolver: principal,\r\n        created-at: uint\r\n    }\r\n)\r\n\r\n(define-map milestones\r\n    { project-id: uint, milestone-id: uint }\r\n    {\r\n        amount: uint,\r\n        description: (string-utf8 256),\r\n        status: (string-ascii 20),\r\n        completion-proof: (optional (string-utf8 500))\r\n    }\r\n)\r\n\r\n(define-map project-funds\r\n    { project-id: uint }\r\n    { \r\n        balance: uint,\r\n        released: uint\r\n    }\r\n)\r\n\r\n(define-map disputes\r\n    { project-id: uint }\r\n    {\r\n        initiated-by: principal,\r\n        reason: (string-utf8 500),\r\n        resolver-fee: uint,\r\n        resolved: bool\r\n    }\r\n)\r\n\r\n;; Read-only functions\r\n(define-read-only (get-project-details (project-id uint))\r\n    (ok (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n)\r\n\r\n(define-read-only (get-milestone-details (project-id uint) (milestone-id uint))\r\n    (ok (unwrap! (map-get? milestones {project-id: project-id, milestone-id: milestone-id}) err-not-found))\r\n)\r\n\r\n(define-read-only (get-project-balance (project-id uint))\r\n    (ok (unwrap! (map-get? project-funds {project-id: project-id}) err-not-found))\r\n)\r\n\r\n;; Public functions\r\n(define-public (create-project (description (string-utf8 500)) (total-amount uint) (milestone-count uint) (dispute-resolver principal))\r\n    (let\r\n        (\r\n            (project-id (+ (var-get project-id-nonce) u1))\r\n        )\r\n        (asserts! (> total-amount u0) err-invalid-percentage)\r\n        (asserts! (> milestone-count u0) err-invalid-percentage)\r\n        \r\n        (try! (stx-transfer? total-amount tx-sender (as-contract? tx-sender)))\r\n        \r\n        (map-set projects\r\n            {project-id: project-id}\r\n            {\r\n                client: tx-sender,\r\n                freelancer: none,\r\n                total-amount: total-amount,\r\n                milestone-count: milestone-count,\r\n                description: description,\r\n                status: \"open\",\r\n                dispute-resolver: dispute-resolver,\r\n                created-at: block-height\r\n            }\r\n        )\r\n        \r\n        (map-set project-funds\r\n            {project-id: project-id}\r\n            {\r\n                balance: total-amount,\r\n                released: u0\r\n            }\r\n        )\r\n        \r\n        (var-set project-id-nonce project-id)\r\n        (ok project-id)\r\n    )\r\n)\r\n\r\n(define-public (accept-project (project-id uint))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq (get status project) \"open\") err-wrong-status)\r\n        (asserts! (is-none (get freelancer project)) err-already-exists)\r\n        \r\n        (map-set projects\r\n            {project-id: project-id}\r\n            (merge project {\r\n                freelancer: (some tx-sender),\r\n                status: \"in-progress\"\r\n            })\r\n        )\r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (submit-milestone (project-id uint) (milestone-id uint) (completion-proof (string-utf8 500)))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (milestone (unwrap! (map-get? milestones {project-id: project-id, milestone-id: milestone-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq (some tx-sender) (get freelancer project)) err-unauthorized)\r\n        (asserts! (is-eq (get status milestone) \"pending\") err-wrong-status)\r\n        \r\n        (map-set milestones\r\n            {project-id: project-id, milestone-id: milestone-id}\r\n            (merge milestone {\r\n                status: \"submitted\",\r\n                completion-proof: (some completion-proof)\r\n            })\r\n        )\r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (approve-milestone (project-id uint) (milestone-id uint))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (milestone (unwrap! (map-get? milestones {project-id: project-id, milestone-id: milestone-id}) err-not-found))\r\n            (funds (unwrap! (map-get? project-funds {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq tx-sender (get client project)) err-unauthorized)\r\n        (asserts! (is-eq (get status milestone) \"submitted\") err-wrong-status)\r\n        \r\n        ;; Release payment\r\n        (try! (as-contract (stx-transfer? \r\n            (get amount milestone)\r\n            tx-sender\r\n            (unwrap! (get freelancer project) err-not-found)\r\n        )))\r\n        \r\n        ;; Update milestone and funds\r\n        (map-set milestones\r\n            {project-id: project-id, milestone-id: milestone-id}\r\n            (merge milestone {status: \"completed\"})\r\n        )\r\n        \r\n        (map-set project-funds\r\n            {project-id: project-id}\r\n            {\r\n                balance: (- (get balance funds) (get amount milestone)),\r\n                released: (+ (get released funds) (get amount milestone))\r\n            }\r\n        )\r\n        \r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (initiate-dispute (project-id uint) (reason (string-utf8 500)))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (resolver-fee (/ (get total-amount project) u20)) ;; 5% fee\r\n        )\r\n        (asserts! (or \r\n            (is-eq tx-sender (get client project))\r\n            (is-eq (some tx-sender) (get freelancer project))\r\n        ) err-unauthorized)\r\n        \r\n        (map-set disputes\r\n            {project-id: project-id}\r\n            {\r\n                initiated-by: tx-sender,\r\n                reason: reason,\r\n                resolver-fee: resolver-fee,\r\n                resolved: false\r\n            }\r\n        )\r\n        \r\n        (map-set projects\r\n            {project-id: project-id}\r\n            (merge project {status: \"disputed\"})\r\n        )\r\n        \r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (resolve-dispute \r\n    (project-id uint) \r\n    (client-percentage uint)\r\n    (freelancer-percentage uint))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (funds (unwrap! (map-get? project-funds {project-id: project-id}) err-not-found))\r\n            (dispute (unwrap! (map-get? disputes {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq tx-sender (get dispute-resolver project)) err-unauthorized)\r\n        (asserts! (is-eq (+ client-percentage freelancer-percentage) u100) err-invalid-percentage)\r\n        \r\n        ;; Calculate amounts\r\n        (let\r\n            (\r\n                (remaining-balance (get balance funds))\r\n                (client-amount (/ (* remaining-balance client-percentage) u100))\r\n                (freelancer-amount (/ (* remaining-balance freelancer-percentage) u100))\r\n            )\r\n            ;; Transfer funds\r\n            (try! (as-contract? (stx-transfer? client-amount tx-sender (get client project))))\r\n            (try! (as-contract (stx-transfer? freelancer-amount tx-sender (unwrap! (get freelancer project) err-not-found))))\r\n            (try! (as-contract (stx-transfer? (get resolver-fee dispute) tx-sender (get dispute-resolver project))))\r\n            \r\n            ;; Update project status\r\n            (map-set projects\r\n                {project-id: project-id}\r\n                (merge project {status: \"resolved\"})\r\n            )\r\n            \r\n            (map-set disputes\r\n                {project-id: project-id}\r\n                (merge dispute {resolved: true})\r\n            )\r\n            \r\n            (ok true)\r\n        )\r\n    )\r\n)\r\n\r\n;; Initialize milestone\r\n(define-public (set-milestone \r\n    (project-id uint) \r\n    (milestone-id uint)\r\n    (amount uint)\r\n    (description (string-utf8 256)))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq tx-sender (get client project)) err-unauthorized)\r\n        (asserts! (< milestone-id (get milestone-count project)) err-invalid-percentage)\r\n        \r\n        (map-set milestones\r\n            {project-id: project-id, milestone-id: milestone-id}\r\n            {\r\n                amount: amount,\r\n                description: description,\r\n                status: \"pending\",\r\n                completion-proof: none\r\n            }\r\n        )\r\n        (ok true)\r\n    )\r\n)"
+      }
+    ]
+  },
+  {
+    "branch": "refactor/contract-as-contract-resolve-2",
+    "commit_msg": "refactor: update second as-contract in resolve-dispute",
+    "pr_body": "This PR introduces: refactor: update second as-contract in resolve-dispute",
+    "changes": [
+      {
+        "path": "contracts/claritylance.clar",
+        "content": ";; ClarityLance\r\n;; A decentralized freelance payment escrow system with milestone-based releases\r\n;; Contract allows clients to create projects, freelancers to accept them,\r\n;; and implements a milestone-based payment system with dispute resolution\r\n\r\n;; Constants\r\n(define-constant contract-owner tx-sender)\r\n(define-constant err-owner-only (err u100))\r\n(define-constant err-not-found (err u101))\r\n(define-constant err-already-exists (err u102))\r\n(define-constant err-unauthorized (err u103))\r\n(define-constant err-wrong-status (err u104))\r\n(define-constant err-insufficient-funds (err u105))\r\n(define-constant err-invalid-percentage (err u106))\r\n\r\n;; Project status types\r\n(define-data-var project-id-nonce uint u0)\r\n\r\n;; Data Structures\r\n(define-map projects \r\n    { project-id: uint }\r\n    {\r\n        client: principal,\r\n        freelancer: (optional principal),\r\n        total-amount: uint,\r\n        milestone-count: uint,\r\n        description: (string-utf8 500),\r\n        status: (string-ascii 20),\r\n        dispute-resolver: principal,\r\n        created-at: uint\r\n    }\r\n)\r\n\r\n(define-map milestones\r\n    { project-id: uint, milestone-id: uint }\r\n    {\r\n        amount: uint,\r\n        description: (string-utf8 256),\r\n        status: (string-ascii 20),\r\n        completion-proof: (optional (string-utf8 500))\r\n    }\r\n)\r\n\r\n(define-map project-funds\r\n    { project-id: uint }\r\n    { \r\n        balance: uint,\r\n        released: uint\r\n    }\r\n)\r\n\r\n(define-map disputes\r\n    { project-id: uint }\r\n    {\r\n        initiated-by: principal,\r\n        reason: (string-utf8 500),\r\n        resolver-fee: uint,\r\n        resolved: bool\r\n    }\r\n)\r\n\r\n;; Read-only functions\r\n(define-read-only (get-project-details (project-id uint))\r\n    (ok (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n)\r\n\r\n(define-read-only (get-milestone-details (project-id uint) (milestone-id uint))\r\n    (ok (unwrap! (map-get? milestones {project-id: project-id, milestone-id: milestone-id}) err-not-found))\r\n)\r\n\r\n(define-read-only (get-project-balance (project-id uint))\r\n    (ok (unwrap! (map-get? project-funds {project-id: project-id}) err-not-found))\r\n)\r\n\r\n;; Public functions\r\n(define-public (create-project (description (string-utf8 500)) (total-amount uint) (milestone-count uint) (dispute-resolver principal))\r\n    (let\r\n        (\r\n            (project-id (+ (var-get project-id-nonce) u1))\r\n        )\r\n        (asserts! (> total-amount u0) err-invalid-percentage)\r\n        (asserts! (> milestone-count u0) err-invalid-percentage)\r\n        \r\n        (try! (stx-transfer? total-amount tx-sender (as-contract? tx-sender)))\r\n        \r\n        (map-set projects\r\n            {project-id: project-id}\r\n            {\r\n                client: tx-sender,\r\n                freelancer: none,\r\n                total-amount: total-amount,\r\n                milestone-count: milestone-count,\r\n                description: description,\r\n                status: \"open\",\r\n                dispute-resolver: dispute-resolver,\r\n                created-at: block-height\r\n            }\r\n        )\r\n        \r\n        (map-set project-funds\r\n            {project-id: project-id}\r\n            {\r\n                balance: total-amount,\r\n                released: u0\r\n            }\r\n        )\r\n        \r\n        (var-set project-id-nonce project-id)\r\n        (ok project-id)\r\n    )\r\n)\r\n\r\n(define-public (accept-project (project-id uint))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq (get status project) \"open\") err-wrong-status)\r\n        (asserts! (is-none (get freelancer project)) err-already-exists)\r\n        \r\n        (map-set projects\r\n            {project-id: project-id}\r\n            (merge project {\r\n                freelancer: (some tx-sender),\r\n                status: \"in-progress\"\r\n            })\r\n        )\r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (submit-milestone (project-id uint) (milestone-id uint) (completion-proof (string-utf8 500)))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (milestone (unwrap! (map-get? milestones {project-id: project-id, milestone-id: milestone-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq (some tx-sender) (get freelancer project)) err-unauthorized)\r\n        (asserts! (is-eq (get status milestone) \"pending\") err-wrong-status)\r\n        \r\n        (map-set milestones\r\n            {project-id: project-id, milestone-id: milestone-id}\r\n            (merge milestone {\r\n                status: \"submitted\",\r\n                completion-proof: (some completion-proof)\r\n            })\r\n        )\r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (approve-milestone (project-id uint) (milestone-id uint))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (milestone (unwrap! (map-get? milestones {project-id: project-id, milestone-id: milestone-id}) err-not-found))\r\n            (funds (unwrap! (map-get? project-funds {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq tx-sender (get client project)) err-unauthorized)\r\n        (asserts! (is-eq (get status milestone) \"submitted\") err-wrong-status)\r\n        \r\n        ;; Release payment\r\n        (try! (as-contract (stx-transfer? \r\n            (get amount milestone)\r\n            tx-sender\r\n            (unwrap! (get freelancer project) err-not-found)\r\n        )))\r\n        \r\n        ;; Update milestone and funds\r\n        (map-set milestones\r\n            {project-id: project-id, milestone-id: milestone-id}\r\n            (merge milestone {status: \"completed\"})\r\n        )\r\n        \r\n        (map-set project-funds\r\n            {project-id: project-id}\r\n            {\r\n                balance: (- (get balance funds) (get amount milestone)),\r\n                released: (+ (get released funds) (get amount milestone))\r\n            }\r\n        )\r\n        \r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (initiate-dispute (project-id uint) (reason (string-utf8 500)))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (resolver-fee (/ (get total-amount project) u20)) ;; 5% fee\r\n        )\r\n        (asserts! (or \r\n            (is-eq tx-sender (get client project))\r\n            (is-eq (some tx-sender) (get freelancer project))\r\n        ) err-unauthorized)\r\n        \r\n        (map-set disputes\r\n            {project-id: project-id}\r\n            {\r\n                initiated-by: tx-sender,\r\n                reason: reason,\r\n                resolver-fee: resolver-fee,\r\n                resolved: false\r\n            }\r\n        )\r\n        \r\n        (map-set projects\r\n            {project-id: project-id}\r\n            (merge project {status: \"disputed\"})\r\n        )\r\n        \r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (resolve-dispute \r\n    (project-id uint) \r\n    (client-percentage uint)\r\n    (freelancer-percentage uint))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (funds (unwrap! (map-get? project-funds {project-id: project-id}) err-not-found))\r\n            (dispute (unwrap! (map-get? disputes {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq tx-sender (get dispute-resolver project)) err-unauthorized)\r\n        (asserts! (is-eq (+ client-percentage freelancer-percentage) u100) err-invalid-percentage)\r\n        \r\n        ;; Calculate amounts\r\n        (let\r\n            (\r\n                (remaining-balance (get balance funds))\r\n                (client-amount (/ (* remaining-balance client-percentage) u100))\r\n                (freelancer-amount (/ (* remaining-balance freelancer-percentage) u100))\r\n            )\r\n            ;; Transfer funds\r\n            (try! (as-contract? (stx-transfer? client-amount tx-sender (get client project))))\r\n            (try! (as-contract? (stx-transfer? freelancer-amount tx-sender (unwrap! (get freelancer project) err-not-found))))\r\n            (try! (as-contract (stx-transfer? (get resolver-fee dispute) tx-sender (get dispute-resolver project))))\r\n            \r\n            ;; Update project status\r\n            (map-set projects\r\n                {project-id: project-id}\r\n                (merge project {status: \"resolved\"})\r\n            )\r\n            \r\n            (map-set disputes\r\n                {project-id: project-id}\r\n                (merge dispute {resolved: true})\r\n            )\r\n            \r\n            (ok true)\r\n        )\r\n    )\r\n)\r\n\r\n;; Initialize milestone\r\n(define-public (set-milestone \r\n    (project-id uint) \r\n    (milestone-id uint)\r\n    (amount uint)\r\n    (description (string-utf8 256)))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq tx-sender (get client project)) err-unauthorized)\r\n        (asserts! (< milestone-id (get milestone-count project)) err-invalid-percentage)\r\n        \r\n        (map-set milestones\r\n            {project-id: project-id, milestone-id: milestone-id}\r\n            {\r\n                amount: amount,\r\n                description: description,\r\n                status: \"pending\",\r\n                completion-proof: none\r\n            }\r\n        )\r\n        (ok true)\r\n    )\r\n)"
+      }
+    ]
+  },
+  {
+    "branch": "refactor/contract-as-contract-resolve-3",
+    "commit_msg": "refactor: update third as-contract in resolve-dispute",
+    "pr_body": "This PR introduces: refactor: update third as-contract in resolve-dispute",
+    "changes": [
+      {
+        "path": "contracts/claritylance.clar",
+        "content": ";; ClarityLance\r\n;; A decentralized freelance payment escrow system with milestone-based releases\r\n;; Contract allows clients to create projects, freelancers to accept them,\r\n;; and implements a milestone-based payment system with dispute resolution\r\n\r\n;; Constants\r\n(define-constant contract-owner tx-sender)\r\n(define-constant err-owner-only (err u100))\r\n(define-constant err-not-found (err u101))\r\n(define-constant err-already-exists (err u102))\r\n(define-constant err-unauthorized (err u103))\r\n(define-constant err-wrong-status (err u104))\r\n(define-constant err-insufficient-funds (err u105))\r\n(define-constant err-invalid-percentage (err u106))\r\n\r\n;; Project status types\r\n(define-data-var project-id-nonce uint u0)\r\n\r\n;; Data Structures\r\n(define-map projects \r\n    { project-id: uint }\r\n    {\r\n        client: principal,\r\n        freelancer: (optional principal),\r\n        total-amount: uint,\r\n        milestone-count: uint,\r\n        description: (string-utf8 500),\r\n        status: (string-ascii 20),\r\n        dispute-resolver: principal,\r\n        created-at: uint\r\n    }\r\n)\r\n\r\n(define-map milestones\r\n    { project-id: uint, milestone-id: uint }\r\n    {\r\n        amount: uint,\r\n        description: (string-utf8 256),\r\n        status: (string-ascii 20),\r\n        completion-proof: (optional (string-utf8 500))\r\n    }\r\n)\r\n\r\n(define-map project-funds\r\n    { project-id: uint }\r\n    { \r\n        balance: uint,\r\n        released: uint\r\n    }\r\n)\r\n\r\n(define-map disputes\r\n    { project-id: uint }\r\n    {\r\n        initiated-by: principal,\r\n        reason: (string-utf8 500),\r\n        resolver-fee: uint,\r\n        resolved: bool\r\n    }\r\n)\r\n\r\n;; Read-only functions\r\n(define-read-only (get-project-details (project-id uint))\r\n    (ok (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n)\r\n\r\n(define-read-only (get-milestone-details (project-id uint) (milestone-id uint))\r\n    (ok (unwrap! (map-get? milestones {project-id: project-id, milestone-id: milestone-id}) err-not-found))\r\n)\r\n\r\n(define-read-only (get-project-balance (project-id uint))\r\n    (ok (unwrap! (map-get? project-funds {project-id: project-id}) err-not-found))\r\n)\r\n\r\n;; Public functions\r\n(define-public (create-project (description (string-utf8 500)) (total-amount uint) (milestone-count uint) (dispute-resolver principal))\r\n    (let\r\n        (\r\n            (project-id (+ (var-get project-id-nonce) u1))\r\n        )\r\n        (asserts! (> total-amount u0) err-invalid-percentage)\r\n        (asserts! (> milestone-count u0) err-invalid-percentage)\r\n        \r\n        (try! (stx-transfer? total-amount tx-sender (as-contract? tx-sender)))\r\n        \r\n        (map-set projects\r\n            {project-id: project-id}\r\n            {\r\n                client: tx-sender,\r\n                freelancer: none,\r\n                total-amount: total-amount,\r\n                milestone-count: milestone-count,\r\n                description: description,\r\n                status: \"open\",\r\n                dispute-resolver: dispute-resolver,\r\n                created-at: block-height\r\n            }\r\n        )\r\n        \r\n        (map-set project-funds\r\n            {project-id: project-id}\r\n            {\r\n                balance: total-amount,\r\n                released: u0\r\n            }\r\n        )\r\n        \r\n        (var-set project-id-nonce project-id)\r\n        (ok project-id)\r\n    )\r\n)\r\n\r\n(define-public (accept-project (project-id uint))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq (get status project) \"open\") err-wrong-status)\r\n        (asserts! (is-none (get freelancer project)) err-already-exists)\r\n        \r\n        (map-set projects\r\n            {project-id: project-id}\r\n            (merge project {\r\n                freelancer: (some tx-sender),\r\n                status: \"in-progress\"\r\n            })\r\n        )\r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (submit-milestone (project-id uint) (milestone-id uint) (completion-proof (string-utf8 500)))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (milestone (unwrap! (map-get? milestones {project-id: project-id, milestone-id: milestone-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq (some tx-sender) (get freelancer project)) err-unauthorized)\r\n        (asserts! (is-eq (get status milestone) \"pending\") err-wrong-status)\r\n        \r\n        (map-set milestones\r\n            {project-id: project-id, milestone-id: milestone-id}\r\n            (merge milestone {\r\n                status: \"submitted\",\r\n                completion-proof: (some completion-proof)\r\n            })\r\n        )\r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (approve-milestone (project-id uint) (milestone-id uint))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (milestone (unwrap! (map-get? milestones {project-id: project-id, milestone-id: milestone-id}) err-not-found))\r\n            (funds (unwrap! (map-get? project-funds {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq tx-sender (get client project)) err-unauthorized)\r\n        (asserts! (is-eq (get status milestone) \"submitted\") err-wrong-status)\r\n        \r\n        ;; Release payment\r\n        (try! (as-contract (stx-transfer? \r\n            (get amount milestone)\r\n            tx-sender\r\n            (unwrap! (get freelancer project) err-not-found)\r\n        )))\r\n        \r\n        ;; Update milestone and funds\r\n        (map-set milestones\r\n            {project-id: project-id, milestone-id: milestone-id}\r\n            (merge milestone {status: \"completed\"})\r\n        )\r\n        \r\n        (map-set project-funds\r\n            {project-id: project-id}\r\n            {\r\n                balance: (- (get balance funds) (get amount milestone)),\r\n                released: (+ (get released funds) (get amount milestone))\r\n            }\r\n        )\r\n        \r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (initiate-dispute (project-id uint) (reason (string-utf8 500)))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (resolver-fee (/ (get total-amount project) u20)) ;; 5% fee\r\n        )\r\n        (asserts! (or \r\n            (is-eq tx-sender (get client project))\r\n            (is-eq (some tx-sender) (get freelancer project))\r\n        ) err-unauthorized)\r\n        \r\n        (map-set disputes\r\n            {project-id: project-id}\r\n            {\r\n                initiated-by: tx-sender,\r\n                reason: reason,\r\n                resolver-fee: resolver-fee,\r\n                resolved: false\r\n            }\r\n        )\r\n        \r\n        (map-set projects\r\n            {project-id: project-id}\r\n            (merge project {status: \"disputed\"})\r\n        )\r\n        \r\n        (ok true)\r\n    )\r\n)\r\n\r\n(define-public (resolve-dispute \r\n    (project-id uint) \r\n    (client-percentage uint)\r\n    (freelancer-percentage uint))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n            (funds (unwrap! (map-get? project-funds {project-id: project-id}) err-not-found))\r\n            (dispute (unwrap! (map-get? disputes {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq tx-sender (get dispute-resolver project)) err-unauthorized)\r\n        (asserts! (is-eq (+ client-percentage freelancer-percentage) u100) err-invalid-percentage)\r\n        \r\n        ;; Calculate amounts\r\n        (let\r\n            (\r\n                (remaining-balance (get balance funds))\r\n                (client-amount (/ (* remaining-balance client-percentage) u100))\r\n                (freelancer-amount (/ (* remaining-balance freelancer-percentage) u100))\r\n            )\r\n            ;; Transfer funds\r\n            (try! (as-contract? (stx-transfer? client-amount tx-sender (get client project))))\r\n            (try! (as-contract? (stx-transfer? freelancer-amount tx-sender (unwrap! (get freelancer project) err-not-found))))\r\n            (try! (as-contract? (stx-transfer? (get resolver-fee dispute) tx-sender (get dispute-resolver project))))\r\n            \r\n            ;; Update project status\r\n            (map-set projects\r\n                {project-id: project-id}\r\n                (merge project {status: \"resolved\"})\r\n            )\r\n            \r\n            (map-set disputes\r\n                {project-id: project-id}\r\n                (merge dispute {resolved: true})\r\n            )\r\n            \r\n            (ok true)\r\n        )\r\n    )\r\n)\r\n\r\n;; Initialize milestone\r\n(define-public (set-milestone \r\n    (project-id uint) \r\n    (milestone-id uint)\r\n    (amount uint)\r\n    (description (string-utf8 256)))\r\n    (let\r\n        (\r\n            (project (unwrap! (map-get? projects {project-id: project-id}) err-not-found))\r\n        )\r\n        (asserts! (is-eq tx-sender (get client project)) err-unauthorized)\r\n        (asserts! (< milestone-id (get milestone-count project)) err-invalid-percentage)\r\n        \r\n        (map-set milestones\r\n            {project-id: project-id, milestone-id: milestone-id}\r\n            {\r\n                amount: amount,\r\n                description: description,\r\n                status: \"pending\",\r\n                completion-proof: none\r\n            }\r\n        )\r\n        (ok true)\r\n    )\r\n)"
+      }
+    ]
+  },
+  {
+    "branch": "docs/init-readme",
+    "commit_msg": "docs: initialize project documentation",
+    "pr_body": "This PR introduces: docs: initialize project documentation",
+    "changes": [
+      {
+        "path": "docs/OVERVIEW.md",
+        "content": "# ClarityLance Overview\n\nA decentralized freelance platform."
+      }
+    ]
+  },
+  {
+    "branch": "docs/tech-stack",
+    "commit_msg": "docs: add technology stack section",
+    "pr_body": "This PR introduces: docs: add technology stack section",
+    "changes": [
+      {
+        "path": "docs/OVERVIEW.md",
+        "content": "# ClarityLance Overview\n\nA decentralized freelance platform.\n\n## Tech Stack\n- Clarity 4.0\n- Stacks JS\n- React\n- WalletConnect"
+      }
+    ]
+  },
+  {
+    "branch": "feat/frontend-pkg",
+    "commit_msg": "feat: init frontend package.json",
+    "pr_body": "This PR introduces: feat: init frontend package.json",
+    "changes": [
+      {
+        "path": "frontend/package.json",
+        "content": "{\n  \"name\": \"claritylance-web\",\n  \"version\": \"0.1.0\",\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"react\": \"^18.2.0\",\n    \"react-dom\": \"^18.2.0\",\n    \"@stacks/connect\": \"^7.7.0\",\n    \"@stacks/transactions\": \"^6.15.0\",\n    \"@stacks/network\": \"^6.13.0\",\n    \"@hirosystems/chainhooks-client\": \"^1.0.0\",\n    \"lucide-react\": \"^0.344.0\"\n  },\n  \"devDependencies\": {\n    \"vite\": \"^5.1.4\",\n    \"typescript\": \"^5.3.3\"\n  }\n}"
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-header",
+    "commit_msg": "feat: add Header component boiler",
+    "pr_body": "This PR introduces: feat: add Header component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/Header/Header.tsx",
+        "content": "import React from 'react';\n\nexport const Header = () => {\n  return <div>Header Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/Header/Header.css",
+        "content": ".header {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-header",
+    "commit_msg": "docs: add documentation for Header",
+    "pr_body": "This PR introduces: docs: add documentation for Header",
+    "changes": [
+      {
+        "path": "docs/components/Header.md",
+        "content": "# Header\n\nDocumentation for the Header component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-footer",
+    "commit_msg": "feat: add Footer component boiler",
+    "pr_body": "This PR introduces: feat: add Footer component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/Footer/Footer.tsx",
+        "content": "import React from 'react';\n\nexport const Footer = () => {\n  return <div>Footer Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/Footer/Footer.css",
+        "content": ".footer {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-footer",
+    "commit_msg": "docs: add documentation for Footer",
+    "pr_body": "This PR introduces: docs: add documentation for Footer",
+    "changes": [
+      {
+        "path": "docs/components/Footer.md",
+        "content": "# Footer\n\nDocumentation for the Footer component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-sidebar",
+    "commit_msg": "feat: add Sidebar component boiler",
+    "pr_body": "This PR introduces: feat: add Sidebar component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/Sidebar/Sidebar.tsx",
+        "content": "import React from 'react';\n\nexport const Sidebar = () => {\n  return <div>Sidebar Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/Sidebar/Sidebar.css",
+        "content": ".sidebar {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-sidebar",
+    "commit_msg": "docs: add documentation for Sidebar",
+    "pr_body": "This PR introduces: docs: add documentation for Sidebar",
+    "changes": [
+      {
+        "path": "docs/components/Sidebar.md",
+        "content": "# Sidebar\n\nDocumentation for the Sidebar component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-projectlist",
+    "commit_msg": "feat: add ProjectList component boiler",
+    "pr_body": "This PR introduces: feat: add ProjectList component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/ProjectList/ProjectList.tsx",
+        "content": "import React from 'react';\n\nexport const ProjectList = () => {\n  return <div>ProjectList Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/ProjectList/ProjectList.css",
+        "content": ".projectlist {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-projectlist",
+    "commit_msg": "docs: add documentation for ProjectList",
+    "pr_body": "This PR introduces: docs: add documentation for ProjectList",
+    "changes": [
+      {
+        "path": "docs/components/ProjectList.md",
+        "content": "# ProjectList\n\nDocumentation for the ProjectList component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-projectcard",
+    "commit_msg": "feat: add ProjectCard component boiler",
+    "pr_body": "This PR introduces: feat: add ProjectCard component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/ProjectCard/ProjectCard.tsx",
+        "content": "import React from 'react';\n\nexport const ProjectCard = () => {\n  return <div>ProjectCard Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/ProjectCard/ProjectCard.css",
+        "content": ".projectcard {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-projectcard",
+    "commit_msg": "docs: add documentation for ProjectCard",
+    "pr_body": "This PR introduces: docs: add documentation for ProjectCard",
+    "changes": [
+      {
+        "path": "docs/components/ProjectCard.md",
+        "content": "# ProjectCard\n\nDocumentation for the ProjectCard component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-milestonelist",
+    "commit_msg": "feat: add MilestoneList component boiler",
+    "pr_body": "This PR introduces: feat: add MilestoneList component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/MilestoneList/MilestoneList.tsx",
+        "content": "import React from 'react';\n\nexport const MilestoneList = () => {\n  return <div>MilestoneList Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/MilestoneList/MilestoneList.css",
+        "content": ".milestonelist {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-milestonelist",
+    "commit_msg": "docs: add documentation for MilestoneList",
+    "pr_body": "This PR introduces: docs: add documentation for MilestoneList",
+    "changes": [
+      {
+        "path": "docs/components/MilestoneList.md",
+        "content": "# MilestoneList\n\nDocumentation for the MilestoneList component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-milestoneitem",
+    "commit_msg": "feat: add MilestoneItem component boiler",
+    "pr_body": "This PR introduces: feat: add MilestoneItem component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/MilestoneItem/MilestoneItem.tsx",
+        "content": "import React from 'react';\n\nexport const MilestoneItem = () => {\n  return <div>MilestoneItem Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/MilestoneItem/MilestoneItem.css",
+        "content": ".milestoneitem {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-milestoneitem",
+    "commit_msg": "docs: add documentation for MilestoneItem",
+    "pr_body": "This PR introduces: docs: add documentation for MilestoneItem",
+    "changes": [
+      {
+        "path": "docs/components/MilestoneItem.md",
+        "content": "# MilestoneItem\n\nDocumentation for the MilestoneItem component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-disputemodal",
+    "commit_msg": "feat: add DisputeModal component boiler",
+    "pr_body": "This PR introduces: feat: add DisputeModal component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/DisputeModal/DisputeModal.tsx",
+        "content": "import React from 'react';\n\nexport const DisputeModal = () => {\n  return <div>DisputeModal Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/DisputeModal/DisputeModal.css",
+        "content": ".disputemodal {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-disputemodal",
+    "commit_msg": "docs: add documentation for DisputeModal",
+    "pr_body": "This PR introduces: docs: add documentation for DisputeModal",
+    "changes": [
+      {
+        "path": "docs/components/DisputeModal.md",
+        "content": "# DisputeModal\n\nDocumentation for the DisputeModal component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-createprojectform",
+    "commit_msg": "feat: add CreateProjectForm component boiler",
+    "pr_body": "This PR introduces: feat: add CreateProjectForm component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/CreateProjectForm/CreateProjectForm.tsx",
+        "content": "import React from 'react';\n\nexport const CreateProjectForm = () => {\n  return <div>CreateProjectForm Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/CreateProjectForm/CreateProjectForm.css",
+        "content": ".createprojectform {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-createprojectform",
+    "commit_msg": "docs: add documentation for CreateProjectForm",
+    "pr_body": "This PR introduces: docs: add documentation for CreateProjectForm",
+    "changes": [
+      {
+        "path": "docs/components/CreateProjectForm.md",
+        "content": "# CreateProjectForm\n\nDocumentation for the CreateProjectForm component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-walletstatus",
+    "commit_msg": "feat: add WalletStatus component boiler",
+    "pr_body": "This PR introduces: feat: add WalletStatus component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/WalletStatus/WalletStatus.tsx",
+        "content": "import React from 'react';\n\nexport const WalletStatus = () => {\n  return <div>WalletStatus Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/WalletStatus/WalletStatus.css",
+        "content": ".walletstatus {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-walletstatus",
+    "commit_msg": "docs: add documentation for WalletStatus",
+    "pr_body": "This PR introduces: docs: add documentation for WalletStatus",
+    "changes": [
+      {
+        "path": "docs/components/WalletStatus.md",
+        "content": "# WalletStatus\n\nDocumentation for the WalletStatus component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-notificationtoast",
+    "commit_msg": "feat: add NotificationToast component boiler",
+    "pr_body": "This PR introduces: feat: add NotificationToast component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/NotificationToast/NotificationToast.tsx",
+        "content": "import React from 'react';\n\nexport const NotificationToast = () => {\n  return <div>NotificationToast Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/NotificationToast/NotificationToast.css",
+        "content": ".notificationtoast {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-notificationtoast",
+    "commit_msg": "docs: add documentation for NotificationToast",
+    "pr_body": "This PR introduces: docs: add documentation for NotificationToast",
+    "changes": [
+      {
+        "path": "docs/components/NotificationToast.md",
+        "content": "# NotificationToast\n\nDocumentation for the NotificationToast component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-transactionhistory",
+    "commit_msg": "feat: add TransactionHistory component boiler",
+    "pr_body": "This PR introduces: feat: add TransactionHistory component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/TransactionHistory/TransactionHistory.tsx",
+        "content": "import React from 'react';\n\nexport const TransactionHistory = () => {\n  return <div>TransactionHistory Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/TransactionHistory/TransactionHistory.css",
+        "content": ".transactionhistory {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-transactionhistory",
+    "commit_msg": "docs: add documentation for TransactionHistory",
+    "pr_body": "This PR introduces: docs: add documentation for TransactionHistory",
+    "changes": [
+      {
+        "path": "docs/components/TransactionHistory.md",
+        "content": "# TransactionHistory\n\nDocumentation for the TransactionHistory component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-assetbalance",
+    "commit_msg": "feat: add AssetBalance component boiler",
+    "pr_body": "This PR introduces: feat: add AssetBalance component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/AssetBalance/AssetBalance.tsx",
+        "content": "import React from 'react';\n\nexport const AssetBalance = () => {\n  return <div>AssetBalance Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/AssetBalance/AssetBalance.css",
+        "content": ".assetbalance {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-assetbalance",
+    "commit_msg": "docs: add documentation for AssetBalance",
+    "pr_body": "This PR introduces: docs: add documentation for AssetBalance",
+    "changes": [
+      {
+        "path": "docs/components/AssetBalance.md",
+        "content": "# AssetBalance\n\nDocumentation for the AssetBalance component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-userprofile",
+    "commit_msg": "feat: add UserProfile component boiler",
+    "pr_body": "This PR introduces: feat: add UserProfile component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/UserProfile/UserProfile.tsx",
+        "content": "import React from 'react';\n\nexport const UserProfile = () => {\n  return <div>UserProfile Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/UserProfile/UserProfile.css",
+        "content": ".userprofile {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-userprofile",
+    "commit_msg": "docs: add documentation for UserProfile",
+    "pr_body": "This PR introduces: docs: add documentation for UserProfile",
+    "changes": [
+      {
+        "path": "docs/components/UserProfile.md",
+        "content": "# UserProfile\n\nDocumentation for the UserProfile component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-resolverdashboard",
+    "commit_msg": "feat: add ResolverDashboard component boiler",
+    "pr_body": "This PR introduces: feat: add ResolverDashboard component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/ResolverDashboard/ResolverDashboard.tsx",
+        "content": "import React from 'react';\n\nexport const ResolverDashboard = () => {\n  return <div>ResolverDashboard Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/ResolverDashboard/ResolverDashboard.css",
+        "content": ".resolverdashboard {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-resolverdashboard",
+    "commit_msg": "docs: add documentation for ResolverDashboard",
+    "pr_body": "This PR introduces: docs: add documentation for ResolverDashboard",
+    "changes": [
+      {
+        "path": "docs/components/ResolverDashboard.md",
+        "content": "# ResolverDashboard\n\nDocumentation for the ResolverDashboard component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-feedetails",
+    "commit_msg": "feat: add FeeDetails component boiler",
+    "pr_body": "This PR introduces: feat: add FeeDetails component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/FeeDetails/FeeDetails.tsx",
+        "content": "import React from 'react';\n\nexport const FeeDetails = () => {\n  return <div>FeeDetails Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/FeeDetails/FeeDetails.css",
+        "content": ".feedetails {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-feedetails",
+    "commit_msg": "docs: add documentation for FeeDetails",
+    "pr_body": "This PR introduces: docs: add documentation for FeeDetails",
+    "changes": [
+      {
+        "path": "docs/components/FeeDetails.md",
+        "content": "# FeeDetails\n\nDocumentation for the FeeDetails component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-statusbadge",
+    "commit_msg": "feat: add StatusBadge component boiler",
+    "pr_body": "This PR introduces: feat: add StatusBadge component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/StatusBadge/StatusBadge.tsx",
+        "content": "import React from 'react';\n\nexport const StatusBadge = () => {\n  return <div>StatusBadge Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/StatusBadge/StatusBadge.css",
+        "content": ".statusbadge {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-statusbadge",
+    "commit_msg": "docs: add documentation for StatusBadge",
+    "pr_body": "This PR introduces: docs: add documentation for StatusBadge",
+    "changes": [
+      {
+        "path": "docs/components/StatusBadge.md",
+        "content": "# StatusBadge\n\nDocumentation for the StatusBadge component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-submitproofmodal",
+    "commit_msg": "feat: add SubmitProofModal component boiler",
+    "pr_body": "This PR introduces: feat: add SubmitProofModal component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/SubmitProofModal/SubmitProofModal.tsx",
+        "content": "import React from 'react';\n\nexport const SubmitProofModal = () => {\n  return <div>SubmitProofModal Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/SubmitProofModal/SubmitProofModal.css",
+        "content": ".submitproofmodal {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-submitproofmodal",
+    "commit_msg": "docs: add documentation for SubmitProofModal",
+    "pr_body": "This PR introduces: docs: add documentation for SubmitProofModal",
+    "changes": [
+      {
+        "path": "docs/components/SubmitProofModal.md",
+        "content": "# SubmitProofModal\n\nDocumentation for the SubmitProofModal component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-approvaldialog",
+    "commit_msg": "feat: add ApprovalDialog component boiler",
+    "pr_body": "This PR introduces: feat: add ApprovalDialog component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/ApprovalDialog/ApprovalDialog.tsx",
+        "content": "import React from 'react';\n\nexport const ApprovalDialog = () => {\n  return <div>ApprovalDialog Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/ApprovalDialog/ApprovalDialog.css",
+        "content": ".approvaldialog {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-approvaldialog",
+    "commit_msg": "docs: add documentation for ApprovalDialog",
+    "pr_body": "This PR introduces: docs: add documentation for ApprovalDialog",
+    "changes": [
+      {
+        "path": "docs/components/ApprovalDialog.md",
+        "content": "# ApprovalDialog\n\nDocumentation for the ApprovalDialog component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/component-networkswitch",
+    "commit_msg": "feat: add NetworkSwitch component boiler",
+    "pr_body": "This PR introduces: feat: add NetworkSwitch component boiler",
+    "changes": [
+      {
+        "path": "frontend/src/components/NetworkSwitch/NetworkSwitch.tsx",
+        "content": "import React from 'react';\n\nexport const NetworkSwitch = () => {\n  return <div>NetworkSwitch Component</div>;\n};\n"
+      },
+      {
+        "path": "frontend/src/components/NetworkSwitch/NetworkSwitch.css",
+        "content": ".networkswitch {\n  display: block;\n}\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/component-networkswitch",
+    "commit_msg": "docs: add documentation for NetworkSwitch",
+    "pr_body": "This PR introduces: docs: add documentation for NetworkSwitch",
+    "changes": [
+      {
+        "path": "docs/components/NetworkSwitch.md",
+        "content": "# NetworkSwitch\n\nDocumentation for the NetworkSwitch component."
+      }
+    ]
+  },
+  {
+    "branch": "feat/contract-const-contract-version",
+    "commit_msg": "feat: add contract constant CONTRACT_VERSION",
+    "pr_body": "This PR introduces: feat: add contract constant CONTRACT_VERSION",
+    "changes": [
+      {
+        "path": "contracts/constants.clar",
+        "content": "(define-read-only (get-contract-version) u1)\n"
+      }
+    ]
+  },
+  {
+    "branch": "feat/contract-const-min-milestones",
+    "commit_msg": "feat: add contract constant MIN_MILESTONES",
+    "pr_body": "This PR introduces: feat: add contract constant MIN_MILESTONES",
+    "changes": [
+      {
+        "path": "contracts/constants.clar",
+        "content": "(define-read-only (get-min-milestones) u1)\n"
+      }
+    ]
+  },
+  {
+    "branch": "feat/contract-const-max-milestones",
+    "commit_msg": "feat: add contract constant MAX_MILESTONES",
+    "pr_body": "This PR introduces: feat: add contract constant MAX_MILESTONES",
+    "changes": [
+      {
+        "path": "contracts/constants.clar",
+        "content": "(define-read-only (get-max-milestones) u10)\n"
+      }
+    ]
+  },
+  {
+    "branch": "feat/contract-const-min-amount",
+    "commit_msg": "feat: add contract constant MIN_AMOUNT",
+    "pr_body": "This PR introduces: feat: add contract constant MIN_AMOUNT",
+    "changes": [
+      {
+        "path": "contracts/constants.clar",
+        "content": "(define-read-only (get-min-amount) u1000000)\n"
+      }
+    ]
+  },
+  {
+    "branch": "feat/contract-const-protocol-fee",
+    "commit_msg": "feat: add contract constant PROTOCOL_FEE",
+    "pr_body": "This PR introduces: feat: add contract constant PROTOCOL_FEE",
+    "changes": [
+      {
+        "path": "contracts/constants.clar",
+        "content": "(define-read-only (get-protocol-fee) u100)\n"
+      }
+    ]
+  },
+  {
+    "branch": "feat/types-v0",
+    "commit_msg": "feat: add type definitions part 0",
+    "pr_body": "This PR introduces: feat: add type definitions part 0",
+    "changes": [
+      {
+        "path": "frontend/src/types/type0.ts",
+        "content": "export type Type0 = { id: string; value: number; };"
+      }
+    ]
+  },
+  {
+    "branch": "feat/types-v1",
+    "commit_msg": "feat: add type definitions part 1",
+    "pr_body": "This PR introduces: feat: add type definitions part 1",
+    "changes": [
+      {
+        "path": "frontend/src/types/type1.ts",
+        "content": "export type Type1 = { id: string; value: number; };"
+      }
+    ]
+  },
+  {
+    "branch": "feat/types-v2",
+    "commit_msg": "feat: add type definitions part 2",
+    "pr_body": "This PR introduces: feat: add type definitions part 2",
+    "changes": [
+      {
+        "path": "frontend/src/types/type2.ts",
+        "content": "export type Type2 = { id: string; value: number; };"
+      }
+    ]
+  },
+  {
+    "branch": "feat/types-v3",
+    "commit_msg": "feat: add type definitions part 3",
+    "pr_body": "This PR introduces: feat: add type definitions part 3",
+    "changes": [
+      {
+        "path": "frontend/src/types/type3.ts",
+        "content": "export type Type3 = { id: string; value: number; };"
+      }
+    ]
+  },
+  {
+    "branch": "feat/types-v4",
+    "commit_msg": "feat: add type definitions part 4",
+    "pr_body": "This PR introduces: feat: add type definitions part 4",
+    "changes": [
+      {
+        "path": "frontend/src/types/type4.ts",
+        "content": "export type Type4 = { id: string; value: number; };"
+      }
+    ]
+  },
+  {
+    "branch": "feat/types-v5",
+    "commit_msg": "feat: add type definitions part 5",
+    "pr_body": "This PR introduces: feat: add type definitions part 5",
+    "changes": [
+      {
+        "path": "frontend/src/types/type5.ts",
+        "content": "export type Type5 = { id: string; value: number; };"
+      }
+    ]
+  },
+  {
+    "branch": "feat/types-v6",
+    "commit_msg": "feat: add type definitions part 6",
+    "pr_body": "This PR introduces: feat: add type definitions part 6",
+    "changes": [
+      {
+        "path": "frontend/src/types/type6.ts",
+        "content": "export type Type6 = { id: string; value: number; };"
+      }
+    ]
+  },
+  {
+    "branch": "feat/types-v7",
+    "commit_msg": "feat: add type definitions part 7",
+    "pr_body": "This PR introduces: feat: add type definitions part 7",
+    "changes": [
+      {
+        "path": "frontend/src/types/type7.ts",
+        "content": "export type Type7 = { id: string; value: number; };"
+      }
+    ]
+  },
+  {
+    "branch": "feat/types-v8",
+    "commit_msg": "feat: add type definitions part 8",
+    "pr_body": "This PR introduces: feat: add type definitions part 8",
+    "changes": [
+      {
+        "path": "frontend/src/types/type8.ts",
+        "content": "export type Type8 = { id: string; value: number; };"
+      }
+    ]
+  },
+  {
+    "branch": "feat/types-v9",
+    "commit_msg": "feat: add type definitions part 9",
+    "pr_body": "This PR introduces: feat: add type definitions part 9",
+    "changes": [
+      {
+        "path": "frontend/src/types/type9.ts",
+        "content": "export type Type9 = { id: string; value: number; };"
+      }
+    ]
+  },
+  {
+    "branch": "feat/utils-v0",
+    "commit_msg": "feat: add utility function part 0",
+    "pr_body": "This PR introduces: feat: add utility function part 0",
+    "changes": [
+      {
+        "path": "frontend/src/utils/util0.ts",
+        "content": "export const util0 = () => true;"
+      }
+    ]
+  },
+  {
+    "branch": "feat/utils-v1",
+    "commit_msg": "feat: add utility function part 1",
+    "pr_body": "This PR introduces: feat: add utility function part 1",
+    "changes": [
+      {
+        "path": "frontend/src/utils/util1.ts",
+        "content": "export const util1 = () => true;"
+      }
+    ]
+  },
+  {
+    "branch": "feat/utils-v2",
+    "commit_msg": "feat: add utility function part 2",
+    "pr_body": "This PR introduces: feat: add utility function part 2",
+    "changes": [
+      {
+        "path": "frontend/src/utils/util2.ts",
+        "content": "export const util2 = () => true;"
+      }
+    ]
+  },
+  {
+    "branch": "feat/utils-v3",
+    "commit_msg": "feat: add utility function part 3",
+    "pr_body": "This PR introduces: feat: add utility function part 3",
+    "changes": [
+      {
+        "path": "frontend/src/utils/util3.ts",
+        "content": "export const util3 = () => true;"
+      }
+    ]
+  },
+  {
+    "branch": "feat/utils-v4",
+    "commit_msg": "feat: add utility function part 4",
+    "pr_body": "This PR introduces: feat: add utility function part 4",
+    "changes": [
+      {
+        "path": "frontend/src/utils/util4.ts",
+        "content": "export const util4 = () => true;"
+      }
+    ]
+  },
+  {
+    "branch": "feat/utils-v5",
+    "commit_msg": "feat: add utility function part 5",
+    "pr_body": "This PR introduces: feat: add utility function part 5",
+    "changes": [
+      {
+        "path": "frontend/src/utils/util5.ts",
+        "content": "export const util5 = () => true;"
+      }
+    ]
+  },
+  {
+    "branch": "feat/utils-v6",
+    "commit_msg": "feat: add utility function part 6",
+    "pr_body": "This PR introduces: feat: add utility function part 6",
+    "changes": [
+      {
+        "path": "frontend/src/utils/util6.ts",
+        "content": "export const util6 = () => true;"
+      }
+    ]
+  },
+  {
+    "branch": "feat/utils-v7",
+    "commit_msg": "feat: add utility function part 7",
+    "pr_body": "This PR introduces: feat: add utility function part 7",
+    "changes": [
+      {
+        "path": "frontend/src/utils/util7.ts",
+        "content": "export const util7 = () => true;"
+      }
+    ]
+  },
+  {
+    "branch": "feat/utils-v8",
+    "commit_msg": "feat: add utility function part 8",
+    "pr_body": "This PR introduces: feat: add utility function part 8",
+    "changes": [
+      {
+        "path": "frontend/src/utils/util8.ts",
+        "content": "export const util8 = () => true;"
+      }
+    ]
+  },
+  {
+    "branch": "feat/utils-v9",
+    "commit_msg": "feat: add utility function part 9",
+    "pr_body": "This PR introduces: feat: add utility function part 9",
+    "changes": [
+      {
+        "path": "frontend/src/utils/util9.ts",
+        "content": "export const util9 = () => true;"
+      }
+    ]
+  },
+  {
+    "branch": "feat/walletconnect-deps",
+    "commit_msg": "feat: install walletconnect dependencies",
+    "pr_body": "This PR introduces: feat: install walletconnect dependencies",
+    "changes": [
+      {
+        "path": "frontend/src/services/walletconnect.ts",
+        "content": "// WalletConnect Service\nexport const wcInit = () => {};"
+      }
+    ]
+  },
+  {
+    "branch": "docs/walletconnect-setup",
+    "commit_msg": "docs: describe walletconnect integration",
+    "pr_body": "This PR introduces: docs: describe walletconnect integration",
+    "changes": [
+      {
+        "path": "docs/WALLETCONNECT.md",
+        "content": "# WalletConnect\n\nHow we integrate WalletConnect."
+      }
+    ]
+  },
+  {
+    "branch": "feat/chainhooks-init",
+    "commit_msg": "feat: initialize chainhooks client",
+    "pr_body": "This PR introduces: feat: initialize chainhooks client",
+    "changes": [
+      {
+        "path": "frontend/src/services/chainhooks.ts",
+        "content": "import { ChainhookClient } from '@hirosystems/chainhooks-client';\n\nexport const client = new ChainhookClient();"
+      }
+    ]
+  }
+]
