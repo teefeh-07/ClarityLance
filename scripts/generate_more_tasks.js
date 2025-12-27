@@ -65,10 +65,25 @@ for (let i = 1; i <= 5; i++) {
     ]);
 }
 
-// 7. Type Refinements
+// 8. Design System Tokens
+const tokens = ["colors", "spacing", "typography", "shadows", "animations", "z-index", "breakpoints", "transitions"];
+tokens.forEach(token => {
+    addTask(`style/tokens-${token}`, `style: add design system tokens for ${token}`, [
+        { path: `frontend/src/styles/tokens/${token}.css`, content: `/* ${token} tokens */\n:root { --${token}: 1; }\n` }
+    ]);
+});
+
+// 9. Integration Tests (Stub)
 for (let i = 1; i <= 10; i++) {
-    addTask(`feat/types-refine-${i}`, `feat: refine types for module ${i}`, [
-        { path: `frontend/src/types/refined/module_${i}.ts`, content: `export interface Module${i} { id: number; }` }
+    addTask(`test/integration-part-${i}`, `test: add integration test suite part ${i}`, [
+        { path: `tests/integration/suite_${i}.test.ts`, content: `// Integration test part ${i}` }
+    ]);
+}
+
+// 10. Performance Audit Docs
+for (let i = 1; i <= 5; i++) {
+    addTask(`docs/perf-${i}`, `docs: add performance audit notes part ${i}`, [
+        { path: `docs/perf/AUDIT_${i}.md`, content: `# Performance Audit ${i}` }
     ]);
 }
 

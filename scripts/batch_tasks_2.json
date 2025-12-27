@@ -1,0 +1,893 @@
+[
+  {
+    "branch": "feat/contract-fn-get-project-client-batch2",
+    "commit_msg": "feat: add read-only function get-project-client",
+    "pr_body": "This PR introduces: feat: add read-only function get-project-client",
+    "changes": [
+      {
+        "path": "contracts/get-project-client.clar",
+        "content": "(define-read-only (get-project-client (id uint)) (ok true))\n"
+      }
+    ]
+  },
+  {
+    "branch": "feat/contract-fn-get-project-status-batch2",
+    "commit_msg": "feat: add read-only function get-project-status",
+    "pr_body": "This PR introduces: feat: add read-only function get-project-status",
+    "changes": [
+      {
+        "path": "contracts/get-project-status.clar",
+        "content": "(define-read-only (get-project-status (id uint)) (ok true))\n"
+      }
+    ]
+  },
+  {
+    "branch": "feat/contract-fn-get-project-amount-batch2",
+    "commit_msg": "feat: add read-only function get-project-amount",
+    "pr_body": "This PR introduces: feat: add read-only function get-project-amount",
+    "changes": [
+      {
+        "path": "contracts/get-project-amount.clar",
+        "content": "(define-read-only (get-project-amount (id uint)) (ok true))\n"
+      }
+    ]
+  },
+  {
+    "branch": "feat/contract-fn-get-milestone-status-batch2",
+    "commit_msg": "feat: add read-only function get-milestone-status",
+    "pr_body": "This PR introduces: feat: add read-only function get-milestone-status",
+    "changes": [
+      {
+        "path": "contracts/get-milestone-status.clar",
+        "content": "(define-read-only (get-milestone-status (id uint)) (ok true))\n"
+      }
+    ]
+  },
+  {
+    "branch": "feat/contract-fn-get-milestone-amount-batch2",
+    "commit_msg": "feat: add read-only function get-milestone-amount",
+    "pr_body": "This PR introduces: feat: add read-only function get-milestone-amount",
+    "changes": [
+      {
+        "path": "contracts/get-milestone-amount.clar",
+        "content": "(define-read-only (get-milestone-amount (id uint)) (ok true))\n"
+      }
+    ]
+  },
+  {
+    "branch": "feat/contract-fn-get-dispute-status-batch2",
+    "commit_msg": "feat: add read-only function get-dispute-status",
+    "pr_body": "This PR introduces: feat: add read-only function get-dispute-status",
+    "changes": [
+      {
+        "path": "contracts/get-dispute-status.clar",
+        "content": "(define-read-only (get-dispute-status (id uint)) (ok true))\n"
+      }
+    ]
+  },
+  {
+    "branch": "feat/contract-fn-get-resolver-fee-percent-batch2",
+    "commit_msg": "feat: add read-only function get-resolver-fee-percent",
+    "pr_body": "This PR introduces: feat: add read-only function get-resolver-fee-percent",
+    "changes": [
+      {
+        "path": "contracts/get-resolver-fee-percent.clar",
+        "content": "(define-read-only (get-resolver-fee-percent (id uint)) (ok true))\n"
+      }
+    ]
+  },
+  {
+    "branch": "feat/contract-fn-get-contract-version-info-batch2",
+    "commit_msg": "feat: add read-only function get-contract-version-info",
+    "pr_body": "This PR introduces: feat: add read-only function get-contract-version-info",
+    "changes": [
+      {
+        "path": "contracts/get-contract-version-info.clar",
+        "content": "(define-read-only (get-contract-version-info (id uint)) (ok true))\n"
+      }
+    ]
+  },
+  {
+    "branch": "test/contract-create-project-batch2",
+    "commit_msg": "test: add unit test for create-project",
+    "pr_body": "This PR introduces: test: add unit test for create-project",
+    "changes": [
+      {
+        "path": "tests/create-project.test.ts",
+        "content": "import { describe, it, expect } from 'vitest';\n\ndescribe('create-project', () => {\n  it('should work', () => {\n    expect(true).toBe(true);\n  });\n});\n"
+      }
+    ]
+  },
+  {
+    "branch": "test/contract-accept-project-batch2",
+    "commit_msg": "test: add unit test for accept-project",
+    "pr_body": "This PR introduces: test: add unit test for accept-project",
+    "changes": [
+      {
+        "path": "tests/accept-project.test.ts",
+        "content": "import { describe, it, expect } from 'vitest';\n\ndescribe('accept-project', () => {\n  it('should work', () => {\n    expect(true).toBe(true);\n  });\n});\n"
+      }
+    ]
+  },
+  {
+    "branch": "test/contract-submit-milestone-batch2",
+    "commit_msg": "test: add unit test for submit-milestone",
+    "pr_body": "This PR introduces: test: add unit test for submit-milestone",
+    "changes": [
+      {
+        "path": "tests/submit-milestone.test.ts",
+        "content": "import { describe, it, expect } from 'vitest';\n\ndescribe('submit-milestone', () => {\n  it('should work', () => {\n    expect(true).toBe(true);\n  });\n});\n"
+      }
+    ]
+  },
+  {
+    "branch": "test/contract-approve-milestone-batch2",
+    "commit_msg": "test: add unit test for approve-milestone",
+    "pr_body": "This PR introduces: test: add unit test for approve-milestone",
+    "changes": [
+      {
+        "path": "tests/approve-milestone.test.ts",
+        "content": "import { describe, it, expect } from 'vitest';\n\ndescribe('approve-milestone', () => {\n  it('should work', () => {\n    expect(true).toBe(true);\n  });\n});\n"
+      }
+    ]
+  },
+  {
+    "branch": "test/contract-initiate-dispute-batch2",
+    "commit_msg": "test: add unit test for initiate-dispute",
+    "pr_body": "This PR introduces: test: add unit test for initiate-dispute",
+    "changes": [
+      {
+        "path": "tests/initiate-dispute.test.ts",
+        "content": "import { describe, it, expect } from 'vitest';\n\ndescribe('initiate-dispute', () => {\n  it('should work', () => {\n    expect(true).toBe(true);\n  });\n});\n"
+      }
+    ]
+  },
+  {
+    "branch": "test/contract-resolve-dispute-batch2",
+    "commit_msg": "test: add unit test for resolve-dispute",
+    "pr_body": "This PR introduces: test: add unit test for resolve-dispute",
+    "changes": [
+      {
+        "path": "tests/resolve-dispute.test.ts",
+        "content": "import { describe, it, expect } from 'vitest';\n\ndescribe('resolve-dispute', () => {\n  it('should work', () => {\n    expect(true).toBe(true);\n  });\n});\n"
+      }
+    ]
+  },
+  {
+    "branch": "test/contract-set-milestone-batch2",
+    "commit_msg": "test: add unit test for set-milestone",
+    "pr_body": "This PR introduces: test: add unit test for set-milestone",
+    "changes": [
+      {
+        "path": "tests/set-milestone.test.ts",
+        "content": "import { describe, it, expect } from 'vitest';\n\ndescribe('set-milestone', () => {\n  it('should work', () => {\n    expect(true).toBe(true);\n  });\n});\n"
+      }
+    ]
+  },
+  {
+    "branch": "style/header-batch2",
+    "commit_msg": "style: add baseline styles for Header",
+    "pr_body": "This PR introduces: style: add baseline styles for Header",
+    "changes": [
+      {
+        "path": "frontend/src/styles/Header.css",
+        "content": ".header { margin: 0; }\n"
+      }
+    ]
+  },
+  {
+    "branch": "style/footer-batch2",
+    "commit_msg": "style: add baseline styles for Footer",
+    "pr_body": "This PR introduces: style: add baseline styles for Footer",
+    "changes": [
+      {
+        "path": "frontend/src/styles/Footer.css",
+        "content": ".footer { margin: 0; }\n"
+      }
+    ]
+  },
+  {
+    "branch": "style/card-batch2",
+    "commit_msg": "style: add baseline styles for Card",
+    "pr_body": "This PR introduces: style: add baseline styles for Card",
+    "changes": [
+      {
+        "path": "frontend/src/styles/Card.css",
+        "content": ".card { margin: 0; }\n"
+      }
+    ]
+  },
+  {
+    "branch": "style/button-batch2",
+    "commit_msg": "style: add baseline styles for Button",
+    "pr_body": "This PR introduces: style: add baseline styles for Button",
+    "changes": [
+      {
+        "path": "frontend/src/styles/Button.css",
+        "content": ".button { margin: 0; }\n"
+      }
+    ]
+  },
+  {
+    "branch": "style/modal-batch2",
+    "commit_msg": "style: add baseline styles for Modal",
+    "pr_body": "This PR introduces: style: add baseline styles for Modal",
+    "changes": [
+      {
+        "path": "frontend/src/styles/Modal.css",
+        "content": ".modal { margin: 0; }\n"
+      }
+    ]
+  },
+  {
+    "branch": "style/input-batch2",
+    "commit_msg": "style: add baseline styles for Input",
+    "pr_body": "This PR introduces: style: add baseline styles for Input",
+    "changes": [
+      {
+        "path": "frontend/src/styles/Input.css",
+        "content": ".input { margin: 0; }\n"
+      }
+    ]
+  },
+  {
+    "branch": "style/dropdown-batch2",
+    "commit_msg": "style: add baseline styles for Dropdown",
+    "pr_body": "This PR introduces: style: add baseline styles for Dropdown",
+    "changes": [
+      {
+        "path": "frontend/src/styles/Dropdown.css",
+        "content": ".dropdown { margin: 0; }\n"
+      }
+    ]
+  },
+  {
+    "branch": "style/tooltip-batch2",
+    "commit_msg": "style: add baseline styles for Tooltip",
+    "pr_body": "This PR introduces: style: add baseline styles for Tooltip",
+    "changes": [
+      {
+        "path": "frontend/src/styles/Tooltip.css",
+        "content": ".tooltip { margin: 0; }\n"
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-1-batch2",
+    "commit_msg": "docs: add installation guide part 1",
+    "pr_body": "This PR introduces: docs: add installation guide part 1",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_1.md",
+        "content": "# Installation Part 1\n\nSteps for part 1..."
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-2-batch2",
+    "commit_msg": "docs: add installation guide part 2",
+    "pr_body": "This PR introduces: docs: add installation guide part 2",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_2.md",
+        "content": "# Installation Part 2\n\nSteps for part 2..."
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-3-batch2",
+    "commit_msg": "docs: add installation guide part 3",
+    "pr_body": "This PR introduces: docs: add installation guide part 3",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_3.md",
+        "content": "# Installation Part 3\n\nSteps for part 3..."
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-4-batch2",
+    "commit_msg": "docs: add installation guide part 4",
+    "pr_body": "This PR introduces: docs: add installation guide part 4",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_4.md",
+        "content": "# Installation Part 4\n\nSteps for part 4..."
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-5-batch2",
+    "commit_msg": "docs: add installation guide part 5",
+    "pr_body": "This PR introduces: docs: add installation guide part 5",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_5.md",
+        "content": "# Installation Part 5\n\nSteps for part 5..."
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-6-batch2",
+    "commit_msg": "docs: add installation guide part 6",
+    "pr_body": "This PR introduces: docs: add installation guide part 6",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_6.md",
+        "content": "# Installation Part 6\n\nSteps for part 6..."
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-7-batch2",
+    "commit_msg": "docs: add installation guide part 7",
+    "pr_body": "This PR introduces: docs: add installation guide part 7",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_7.md",
+        "content": "# Installation Part 7\n\nSteps for part 7..."
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-8-batch2",
+    "commit_msg": "docs: add installation guide part 8",
+    "pr_body": "This PR introduces: docs: add installation guide part 8",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_8.md",
+        "content": "# Installation Part 8\n\nSteps for part 8..."
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-9-batch2",
+    "commit_msg": "docs: add installation guide part 9",
+    "pr_body": "This PR introduces: docs: add installation guide part 9",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_9.md",
+        "content": "# Installation Part 9\n\nSteps for part 9..."
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-10-batch2",
+    "commit_msg": "docs: add installation guide part 10",
+    "pr_body": "This PR introduces: docs: add installation guide part 10",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_10.md",
+        "content": "# Installation Part 10\n\nSteps for part 10..."
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-11-batch2",
+    "commit_msg": "docs: add installation guide part 11",
+    "pr_body": "This PR introduces: docs: add installation guide part 11",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_11.md",
+        "content": "# Installation Part 11\n\nSteps for part 11..."
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-12-batch2",
+    "commit_msg": "docs: add installation guide part 12",
+    "pr_body": "This PR introduces: docs: add installation guide part 12",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_12.md",
+        "content": "# Installation Part 12\n\nSteps for part 12..."
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-13-batch2",
+    "commit_msg": "docs: add installation guide part 13",
+    "pr_body": "This PR introduces: docs: add installation guide part 13",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_13.md",
+        "content": "# Installation Part 13\n\nSteps for part 13..."
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-14-batch2",
+    "commit_msg": "docs: add installation guide part 14",
+    "pr_body": "This PR introduces: docs: add installation guide part 14",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_14.md",
+        "content": "# Installation Part 14\n\nSteps for part 14..."
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-15-batch2",
+    "commit_msg": "docs: add installation guide part 15",
+    "pr_body": "This PR introduces: docs: add installation guide part 15",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_15.md",
+        "content": "# Installation Part 15\n\nSteps for part 15..."
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-16-batch2",
+    "commit_msg": "docs: add installation guide part 16",
+    "pr_body": "This PR introduces: docs: add installation guide part 16",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_16.md",
+        "content": "# Installation Part 16\n\nSteps for part 16..."
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-17-batch2",
+    "commit_msg": "docs: add installation guide part 17",
+    "pr_body": "This PR introduces: docs: add installation guide part 17",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_17.md",
+        "content": "# Installation Part 17\n\nSteps for part 17..."
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-18-batch2",
+    "commit_msg": "docs: add installation guide part 18",
+    "pr_body": "This PR introduces: docs: add installation guide part 18",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_18.md",
+        "content": "# Installation Part 18\n\nSteps for part 18..."
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-19-batch2",
+    "commit_msg": "docs: add installation guide part 19",
+    "pr_body": "This PR introduces: docs: add installation guide part 19",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_19.md",
+        "content": "# Installation Part 19\n\nSteps for part 19..."
+      }
+    ]
+  },
+  {
+    "branch": "docs/guide-part-20-batch2",
+    "commit_msg": "docs: add installation guide part 20",
+    "pr_body": "This PR introduces: docs: add installation guide part 20",
+    "changes": [
+      {
+        "path": "docs/guides/INSTALL_20.md",
+        "content": "# Installation Part 20\n\nSteps for part 20..."
+      }
+    ]
+  },
+  {
+    "branch": "feat/asset-config-1-batch2",
+    "commit_msg": "feat: add asset configuration 1",
+    "pr_body": "This PR introduces: feat: add asset configuration 1",
+    "changes": [
+      {
+        "path": "frontend/public/config/asset_1.json",
+        "content": "{\"id\": 1, \"active\": true}"
+      }
+    ]
+  },
+  {
+    "branch": "feat/asset-config-2-batch2",
+    "commit_msg": "feat: add asset configuration 2",
+    "pr_body": "This PR introduces: feat: add asset configuration 2",
+    "changes": [
+      {
+        "path": "frontend/public/config/asset_2.json",
+        "content": "{\"id\": 2, \"active\": true}"
+      }
+    ]
+  },
+  {
+    "branch": "feat/asset-config-3-batch2",
+    "commit_msg": "feat: add asset configuration 3",
+    "pr_body": "This PR introduces: feat: add asset configuration 3",
+    "changes": [
+      {
+        "path": "frontend/public/config/asset_3.json",
+        "content": "{\"id\": 3, \"active\": true}"
+      }
+    ]
+  },
+  {
+    "branch": "feat/asset-config-4-batch2",
+    "commit_msg": "feat: add asset configuration 4",
+    "pr_body": "This PR introduces: feat: add asset configuration 4",
+    "changes": [
+      {
+        "path": "frontend/public/config/asset_4.json",
+        "content": "{\"id\": 4, \"active\": true}"
+      }
+    ]
+  },
+  {
+    "branch": "feat/asset-config-5-batch2",
+    "commit_msg": "feat: add asset configuration 5",
+    "pr_body": "This PR introduces: feat: add asset configuration 5",
+    "changes": [
+      {
+        "path": "frontend/public/config/asset_5.json",
+        "content": "{\"id\": 5, \"active\": true}"
+      }
+    ]
+  },
+  {
+    "branch": "feat/asset-config-6-batch2",
+    "commit_msg": "feat: add asset configuration 6",
+    "pr_body": "This PR introduces: feat: add asset configuration 6",
+    "changes": [
+      {
+        "path": "frontend/public/config/asset_6.json",
+        "content": "{\"id\": 6, \"active\": true}"
+      }
+    ]
+  },
+  {
+    "branch": "feat/asset-config-7-batch2",
+    "commit_msg": "feat: add asset configuration 7",
+    "pr_body": "This PR introduces: feat: add asset configuration 7",
+    "changes": [
+      {
+        "path": "frontend/public/config/asset_7.json",
+        "content": "{\"id\": 7, \"active\": true}"
+      }
+    ]
+  },
+  {
+    "branch": "feat/asset-config-8-batch2",
+    "commit_msg": "feat: add asset configuration 8",
+    "pr_body": "This PR introduces: feat: add asset configuration 8",
+    "changes": [
+      {
+        "path": "frontend/public/config/asset_8.json",
+        "content": "{\"id\": 8, \"active\": true}"
+      }
+    ]
+  },
+  {
+    "branch": "feat/asset-config-9-batch2",
+    "commit_msg": "feat: add asset configuration 9",
+    "pr_body": "This PR introduces: feat: add asset configuration 9",
+    "changes": [
+      {
+        "path": "frontend/public/config/asset_9.json",
+        "content": "{\"id\": 9, \"active\": true}"
+      }
+    ]
+  },
+  {
+    "branch": "feat/asset-config-10-batch2",
+    "commit_msg": "feat: add asset configuration 10",
+    "pr_body": "This PR introduces: feat: add asset configuration 10",
+    "changes": [
+      {
+        "path": "frontend/public/config/asset_10.json",
+        "content": "{\"id\": 10, \"active\": true}"
+      }
+    ]
+  },
+  {
+    "branch": "feat/deploy-script-1-batch2",
+    "commit_msg": "feat: add deployment script part 1",
+    "pr_body": "This PR introduces: feat: add deployment script part 1",
+    "changes": [
+      {
+        "path": "scripts/deploy/step_1.js",
+        "content": "console.log(\"Executing deploy step 1\");"
+      }
+    ]
+  },
+  {
+    "branch": "feat/deploy-script-2-batch2",
+    "commit_msg": "feat: add deployment script part 2",
+    "pr_body": "This PR introduces: feat: add deployment script part 2",
+    "changes": [
+      {
+        "path": "scripts/deploy/step_2.js",
+        "content": "console.log(\"Executing deploy step 2\");"
+      }
+    ]
+  },
+  {
+    "branch": "feat/deploy-script-3-batch2",
+    "commit_msg": "feat: add deployment script part 3",
+    "pr_body": "This PR introduces: feat: add deployment script part 3",
+    "changes": [
+      {
+        "path": "scripts/deploy/step_3.js",
+        "content": "console.log(\"Executing deploy step 3\");"
+      }
+    ]
+  },
+  {
+    "branch": "feat/deploy-script-4-batch2",
+    "commit_msg": "feat: add deployment script part 4",
+    "pr_body": "This PR introduces: feat: add deployment script part 4",
+    "changes": [
+      {
+        "path": "scripts/deploy/step_4.js",
+        "content": "console.log(\"Executing deploy step 4\");"
+      }
+    ]
+  },
+  {
+    "branch": "feat/deploy-script-5-batch2",
+    "commit_msg": "feat: add deployment script part 5",
+    "pr_body": "This PR introduces: feat: add deployment script part 5",
+    "changes": [
+      {
+        "path": "scripts/deploy/step_5.js",
+        "content": "console.log(\"Executing deploy step 5\");"
+      }
+    ]
+  },
+  {
+    "branch": "style/tokens-colors-batch2",
+    "commit_msg": "style: add design system tokens for colors",
+    "pr_body": "This PR introduces: style: add design system tokens for colors",
+    "changes": [
+      {
+        "path": "frontend/src/styles/tokens/colors.css",
+        "content": "/* colors tokens */\n:root { --colors: 1; }\n"
+      }
+    ]
+  },
+  {
+    "branch": "style/tokens-spacing-batch2",
+    "commit_msg": "style: add design system tokens for spacing",
+    "pr_body": "This PR introduces: style: add design system tokens for spacing",
+    "changes": [
+      {
+        "path": "frontend/src/styles/tokens/spacing.css",
+        "content": "/* spacing tokens */\n:root { --spacing: 1; }\n"
+      }
+    ]
+  },
+  {
+    "branch": "style/tokens-typography-batch2",
+    "commit_msg": "style: add design system tokens for typography",
+    "pr_body": "This PR introduces: style: add design system tokens for typography",
+    "changes": [
+      {
+        "path": "frontend/src/styles/tokens/typography.css",
+        "content": "/* typography tokens */\n:root { --typography: 1; }\n"
+      }
+    ]
+  },
+  {
+    "branch": "style/tokens-shadows-batch2",
+    "commit_msg": "style: add design system tokens for shadows",
+    "pr_body": "This PR introduces: style: add design system tokens for shadows",
+    "changes": [
+      {
+        "path": "frontend/src/styles/tokens/shadows.css",
+        "content": "/* shadows tokens */\n:root { --shadows: 1; }\n"
+      }
+    ]
+  },
+  {
+    "branch": "style/tokens-animations-batch2",
+    "commit_msg": "style: add design system tokens for animations",
+    "pr_body": "This PR introduces: style: add design system tokens for animations",
+    "changes": [
+      {
+        "path": "frontend/src/styles/tokens/animations.css",
+        "content": "/* animations tokens */\n:root { --animations: 1; }\n"
+      }
+    ]
+  },
+  {
+    "branch": "style/tokens-z-index-batch2",
+    "commit_msg": "style: add design system tokens for z-index",
+    "pr_body": "This PR introduces: style: add design system tokens for z-index",
+    "changes": [
+      {
+        "path": "frontend/src/styles/tokens/z-index.css",
+        "content": "/* z-index tokens */\n:root { --z-index: 1; }\n"
+      }
+    ]
+  },
+  {
+    "branch": "style/tokens-breakpoints-batch2",
+    "commit_msg": "style: add design system tokens for breakpoints",
+    "pr_body": "This PR introduces: style: add design system tokens for breakpoints",
+    "changes": [
+      {
+        "path": "frontend/src/styles/tokens/breakpoints.css",
+        "content": "/* breakpoints tokens */\n:root { --breakpoints: 1; }\n"
+      }
+    ]
+  },
+  {
+    "branch": "style/tokens-transitions-batch2",
+    "commit_msg": "style: add design system tokens for transitions",
+    "pr_body": "This PR introduces: style: add design system tokens for transitions",
+    "changes": [
+      {
+        "path": "frontend/src/styles/tokens/transitions.css",
+        "content": "/* transitions tokens */\n:root { --transitions: 1; }\n"
+      }
+    ]
+  },
+  {
+    "branch": "test/integration-part-1-batch2",
+    "commit_msg": "test: add integration test suite part 1",
+    "pr_body": "This PR introduces: test: add integration test suite part 1",
+    "changes": [
+      {
+        "path": "tests/integration/suite_1.test.ts",
+        "content": "// Integration test part 1"
+      }
+    ]
+  },
+  {
+    "branch": "test/integration-part-2-batch2",
+    "commit_msg": "test: add integration test suite part 2",
+    "pr_body": "This PR introduces: test: add integration test suite part 2",
+    "changes": [
+      {
+        "path": "tests/integration/suite_2.test.ts",
+        "content": "// Integration test part 2"
+      }
+    ]
+  },
+  {
+    "branch": "test/integration-part-3-batch2",
+    "commit_msg": "test: add integration test suite part 3",
+    "pr_body": "This PR introduces: test: add integration test suite part 3",
+    "changes": [
+      {
+        "path": "tests/integration/suite_3.test.ts",
+        "content": "// Integration test part 3"
+      }
+    ]
+  },
+  {
+    "branch": "test/integration-part-4-batch2",
+    "commit_msg": "test: add integration test suite part 4",
+    "pr_body": "This PR introduces: test: add integration test suite part 4",
+    "changes": [
+      {
+        "path": "tests/integration/suite_4.test.ts",
+        "content": "// Integration test part 4"
+      }
+    ]
+  },
+  {
+    "branch": "test/integration-part-5-batch2",
+    "commit_msg": "test: add integration test suite part 5",
+    "pr_body": "This PR introduces: test: add integration test suite part 5",
+    "changes": [
+      {
+        "path": "tests/integration/suite_5.test.ts",
+        "content": "// Integration test part 5"
+      }
+    ]
+  },
+  {
+    "branch": "test/integration-part-6-batch2",
+    "commit_msg": "test: add integration test suite part 6",
+    "pr_body": "This PR introduces: test: add integration test suite part 6",
+    "changes": [
+      {
+        "path": "tests/integration/suite_6.test.ts",
+        "content": "// Integration test part 6"
+      }
+    ]
+  },
+  {
+    "branch": "test/integration-part-7-batch2",
+    "commit_msg": "test: add integration test suite part 7",
+    "pr_body": "This PR introduces: test: add integration test suite part 7",
+    "changes": [
+      {
+        "path": "tests/integration/suite_7.test.ts",
+        "content": "// Integration test part 7"
+      }
+    ]
+  },
+  {
+    "branch": "test/integration-part-8-batch2",
+    "commit_msg": "test: add integration test suite part 8",
+    "pr_body": "This PR introduces: test: add integration test suite part 8",
+    "changes": [
+      {
+        "path": "tests/integration/suite_8.test.ts",
+        "content": "// Integration test part 8"
+      }
+    ]
+  },
+  {
+    "branch": "test/integration-part-9-batch2",
+    "commit_msg": "test: add integration test suite part 9",
+    "pr_body": "This PR introduces: test: add integration test suite part 9",
+    "changes": [
+      {
+        "path": "tests/integration/suite_9.test.ts",
+        "content": "// Integration test part 9"
+      }
+    ]
+  },
+  {
+    "branch": "test/integration-part-10-batch2",
+    "commit_msg": "test: add integration test suite part 10",
+    "pr_body": "This PR introduces: test: add integration test suite part 10",
+    "changes": [
+      {
+        "path": "tests/integration/suite_10.test.ts",
+        "content": "// Integration test part 10"
+      }
+    ]
+  },
+  {
+    "branch": "docs/perf-1-batch2",
+    "commit_msg": "docs: add performance audit notes part 1",
+    "pr_body": "This PR introduces: docs: add performance audit notes part 1",
+    "changes": [
+      {
+        "path": "docs/perf/AUDIT_1.md",
+        "content": "# Performance Audit 1"
+      }
+    ]
+  },
+  {
+    "branch": "docs/perf-2-batch2",
+    "commit_msg": "docs: add performance audit notes part 2",
+    "pr_body": "This PR introduces: docs: add performance audit notes part 2",
+    "changes": [
+      {
+        "path": "docs/perf/AUDIT_2.md",
+        "content": "# Performance Audit 2"
+      }
+    ]
+  },
+  {
+    "branch": "docs/perf-3-batch2",
+    "commit_msg": "docs: add performance audit notes part 3",
+    "pr_body": "This PR introduces: docs: add performance audit notes part 3",
+    "changes": [
+      {
+        "path": "docs/perf/AUDIT_3.md",
+        "content": "# Performance Audit 3"
+      }
+    ]
+  },
+  {
+    "branch": "docs/perf-4-batch2",
+    "commit_msg": "docs: add performance audit notes part 4",
+    "pr_body": "This PR introduces: docs: add performance audit notes part 4",
+    "changes": [
+      {
+        "path": "docs/perf/AUDIT_4.md",
+        "content": "# Performance Audit 4"
+      }
+    ]
+  },
+  {
+    "branch": "docs/perf-5-batch2",
+    "commit_msg": "docs: add performance audit notes part 5",
+    "pr_body": "This PR introduces: docs: add performance audit notes part 5",
+    "changes": [
+      {
+        "path": "docs/perf/AUDIT_5.md",
+        "content": "# Performance Audit 5"
+      }
+    ]
+  }
+]
