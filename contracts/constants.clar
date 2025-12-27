@@ -1,1 +1,1 @@
-(define-read-only (get-min-milestones) u1)
+(define-read-only (get-max-milestones) u10)
