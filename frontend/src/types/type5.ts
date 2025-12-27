@@ -1,0 +1,1 @@
+export type Type5 = { id: string; value: number; };
